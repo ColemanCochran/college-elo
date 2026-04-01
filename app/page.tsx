@@ -1,5 +1,6 @@
 import { getInitialMatchup } from "@/app/actions/vote";
 import { LEADERBOARD_VOTE_THRESHOLD } from "@/lib/constants";
+import { TOPICS, DEFAULT_TOPIC_SLUG, isValidTopicSlug } from "@/lib/topics";
 import MatchupVoting from "@/components/MatchupVoting";
 import Link from "next/link";
 import { cookies } from "next/headers";
@@ -14,15 +15,25 @@ async function getOrCreateSessionId(): Promise<string> {
   return crypto.randomUUID();
 }
 
-export default async function Home() {
+export default async function Home({
+  searchParams,
+}: {
+  searchParams: Promise<{ topic?: string }>;
+}) {
+  const { topic: rawTopic } = await searchParams;
+  const topicSlug =
+    rawTopic && isValidTopicSlug(rawTopic) ? rawTopic : DEFAULT_TOPIC_SLUG;
+
   const cookieStore = await cookies();
   const voteCount = parseInt(cookieStore.get("cr_votes")?.value ?? "0", 10);
   const leaderboardUnlocked = voteCount >= LEADERBOARD_VOTE_THRESHOLD;
 
   const [matchup, sessionId] = await Promise.all([
-    getInitialMatchup(),
+    getInitialMatchup(topicSlug),
     getOrCreateSessionId(),
   ]);
+
+  const topics = TOPICS.map(t => ({ slug: t.slug, name: t.name }));
 
   return (
     <div className="flex flex-col min-h-screen">
@@ -61,18 +72,14 @@ export default async function Home() {
       {/* Main content */}
       <main className="flex-1 flex flex-col items-center justify-center px-4 py-10 sm:py-16">
         <div className="w-full max-w-3xl">
-          {/* Tagline */}
-          <div className="text-center mb-8 sm:mb-10">
-            <h1 className="text-2xl sm:text-3xl font-bold text-zinc-900 dark:text-zinc-100 tracking-tight">
-              Pick a college
-            </h1>
-            <p className="mt-2 text-sm text-zinc-500 dark:text-zinc-400">
-              Click a card to vote. ELO updates instantly after each matchup.
-            </p>
-          </div>
-
           {matchup ? (
-            <MatchupVoting initialMatchup={matchup} sessionId={sessionId} initialVoteCount={voteCount} />
+            <MatchupVoting
+              initialMatchup={matchup}
+              sessionId={sessionId}
+              initialVoteCount={voteCount}
+              initialTopicSlug={topicSlug}
+              topics={topics}
+            />
           ) : (
             <div className="text-center py-16 rounded-2xl border border-zinc-200 dark:border-zinc-800">
               <p className="text-zinc-500 dark:text-zinc-400 text-sm">

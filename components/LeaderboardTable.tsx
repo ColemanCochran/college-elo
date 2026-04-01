@@ -3,8 +3,10 @@
 import { useState, useMemo } from "react";
 import Image from "next/image";
 import Link from "next/link";
+import { useRouter } from "next/navigation";
 import { College, SortField } from "@/types";
 import { calcWinRate } from "@/lib/elo";
+import { PINNED_COUNT } from "@/lib/topics";
 
 const LOGO_MAP: Record<string, string> = {
   harvard: "https://upload.wikimedia.org/wikipedia/commons/thumb/c/cc/Harvard_University_coat_of_arms.svg/250px-Harvard_University_coat_of_arms.svg.png",
@@ -60,11 +62,21 @@ function getLogoUrl(slug: string): string | null {
   return LOGO_MAP[slug] ?? null;
 }
 
-interface LeaderboardTableProps {
-  colleges: College[];
+interface TopicOption {
+  slug: string;
+  name: string;
 }
 
-export default function LeaderboardTable({ colleges }: LeaderboardTableProps) {
+interface LeaderboardTableProps {
+  colleges: College[];
+  topics: TopicOption[];
+  currentTopicSlug: string;
+}
+
+export default function LeaderboardTable({ colleges, topics, currentTopicSlug }: LeaderboardTableProps) {
+  const router = useRouter();
+  const pinnedTopics = topics.slice(0, PINNED_COUNT);
+  const overflowTopics = topics.slice(PINNED_COUNT);
   const [sortField, setSortField] = useState<SortField>("elo_rating");
   const [search, setSearch] = useState("");
 
@@ -115,6 +127,36 @@ export default function LeaderboardTable({ colleges }: LeaderboardTableProps) {
 
   return (
     <div className="flex flex-col gap-4">
+      {/* Topic tabs */}
+      <div className="flex items-center gap-1.5 flex-wrap">
+        {pinnedTopics.map(topic => (
+          <button
+            key={topic.slug}
+            onClick={() => router.push(`/leaderboard?topic=${topic.slug}`)}
+            className={`px-3 py-1.5 rounded-full text-xs sm:text-sm font-medium transition-colors ${
+              currentTopicSlug === topic.slug
+                ? "bg-zinc-900 dark:bg-zinc-100 text-white dark:text-zinc-900"
+                : "bg-zinc-100 dark:bg-zinc-800 text-zinc-600 dark:text-zinc-400 hover:bg-zinc-200 dark:hover:bg-zinc-700"
+            }`}
+          >
+            {topic.name}
+          </button>
+        ))}
+        {overflowTopics.map(topic => (
+          <button
+            key={topic.slug}
+            onClick={() => router.push(`/leaderboard?topic=${topic.slug}`)}
+            className={`px-3 py-1.5 rounded-full text-xs sm:text-sm font-medium transition-colors ${
+              currentTopicSlug === topic.slug
+                ? "bg-zinc-900 dark:bg-zinc-100 text-white dark:text-zinc-900"
+                : "bg-zinc-100 dark:bg-zinc-800 text-zinc-600 dark:text-zinc-400 hover:bg-zinc-200 dark:hover:bg-zinc-700"
+            }`}
+          >
+            {topic.name}
+          </button>
+        ))}
+      </div>
+
       {/* Controls */}
       <div className="flex flex-col sm:flex-row items-start sm:items-center gap-3">
         <input

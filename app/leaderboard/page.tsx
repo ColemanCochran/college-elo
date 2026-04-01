@@ -5,32 +5,60 @@ import Link from "next/link";
 import { cookies } from "next/headers";
 import { redirect } from "next/navigation";
 import { LEADERBOARD_VOTE_THRESHOLD } from "@/lib/constants";
+import { TOPICS, DEFAULT_TOPIC_SLUG, isValidTopicSlug } from "@/lib/topics";
+import { College } from "@/types";
 
-// Revalidate every 60 seconds for near-real-time freshness
-export const revalidate = 60;
+export const dynamic = "force-dynamic";
 
 export const metadata = {
   title: "Rankings — College Clash",
   description: "Community-voted ELO rankings for the top 50 U.S. colleges.",
 };
 
-export default async function LeaderboardPage() {
+export default async function LeaderboardPage({
+  searchParams,
+}: {
+  searchParams: Promise<{ topic?: string }>;
+}) {
   const cookieStore = await cookies();
   const voteCount = parseInt(cookieStore.get("cr_votes")?.value ?? "0", 10);
-  if (voteCount < LEADERBOARD_VOTE_THRESHOLD) {
-    redirect("/");
-  }
+  if (voteCount < LEADERBOARD_VOTE_THRESHOLD) redirect("/");
+
+  const { topic: rawTopic } = await searchParams;
+  const topicSlug =
+    rawTopic && isValidTopicSlug(rawTopic) ? rawTopic : DEFAULT_TOPIC_SLUG;
 
   const supabase = await createClient();
 
-  const { data: colleges, error } = await supabase
-    .from("colleges")
-    .select("*")
-    .order("elo_rating", { ascending: false });
+  const { data: topicRow } = await supabase
+    .from("topics")
+    .select("id")
+    .eq("slug", topicSlug)
+    .single();
 
-  const totalVotes = colleges
-    ? Math.floor(colleges.reduce((sum, c) => sum + c.comparisons, 0) / 2)
-    : 0;
+  const { data: ratingsData, error } = topicRow
+    ? await supabase
+        .from("elo_ratings")
+        .select(`rating, wins, losses, matches_played, colleges(*)`)
+        .eq("topic_id", topicRow.id)
+        .order("rating", { ascending: false })
+    : { data: null, error: new Error("Topic not found") };
+
+  const colleges: College[] = ratingsData
+    ? ratingsData.map(r => ({
+        ...(r.colleges as unknown as College),
+        elo_rating: r.rating,
+        wins: r.wins,
+        losses: r.losses,
+        comparisons: r.matches_played,
+      }))
+    : [];
+
+  const totalVotes = Math.floor(
+    colleges.reduce((sum, c) => sum + c.comparisons, 0) / 2
+  );
+
+  const topics = TOPICS.map(t => ({ slug: t.slug, name: t.name }));
 
   return (
     <div className="flex flex-col min-h-screen">
@@ -64,15 +92,14 @@ export default async function LeaderboardPage() {
       </header>
 
       <main className="flex-1 max-w-4xl mx-auto w-full px-4 py-8 sm:py-12">
-        {/* Page header */}
-        <div className="mb-8">
+        <div className="mb-6">
           <h1 className="text-2xl sm:text-3xl font-bold text-zinc-900 dark:text-zinc-100 tracking-tight">
             College Rankings
           </h1>
           <p className="mt-1 text-sm text-zinc-500 dark:text-zinc-400">
             Community-voted ELO rankings &middot;{" "}
             <span className="font-medium text-zinc-700 dark:text-zinc-300">
-              {totalVotes.toLocaleString()} total votes
+              {totalVotes.toLocaleString()} votes in this category
             </span>
           </p>
         </div>
@@ -83,13 +110,23 @@ export default async function LeaderboardPage() {
               Failed to load rankings. Please check your database connection.
             </p>
           </div>
-        ) : colleges && colleges.length > 0 ? (
-          <LeaderboardTable colleges={colleges} />
+        ) : colleges.length > 0 ? (
+          <LeaderboardTable
+            colleges={colleges}
+            topics={topics}
+            currentTopicSlug={topicSlug}
+          />
         ) : (
           <div className="rounded-xl border border-zinc-200 dark:border-zinc-800 p-8 text-center">
             <p className="text-zinc-500 dark:text-zinc-400 text-sm">
-              No colleges yet. Seed the database to get started.
+              No data yet for this topic. Vote to get the rankings started!
             </p>
+            <Link
+              href={`/?topic=${topicSlug}`}
+              className="mt-3 inline-flex items-center gap-1.5 px-4 py-2 rounded-lg bg-zinc-900 dark:bg-zinc-100 text-sm font-medium text-white dark:text-zinc-900 hover:bg-zinc-700 dark:hover:bg-zinc-300 transition-colors"
+            >
+              Start voting
+            </Link>
           </div>
         )}
 
@@ -99,7 +136,7 @@ export default async function LeaderboardPage() {
       <footer className="border-t border-zinc-100 dark:border-zinc-900 py-4 px-4">
         <div className="max-w-4xl mx-auto text-xs text-zinc-400 dark:text-zinc-600 flex items-center justify-between">
           <span>College Clash &copy; {new Date().getFullYear()}</span>
-          <span>Refreshes every 60 seconds</span>
+          <span>Live rankings</span>
         </div>
       </footer>
     </div>

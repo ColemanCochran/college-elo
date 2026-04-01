@@ -3,22 +3,55 @@
 import { createClient, createAdminClient } from "@/lib/supabase-server";
 import { calculateNewRatings } from "@/lib/elo";
 import { generateMatchup } from "@/lib/matchmaking";
-import { VoteResult, Matchup } from "@/types";
+import { VoteResult, Matchup, College } from "@/types";
 import { headers, cookies } from "next/headers";
 import crypto from "crypto";
 import { LEADERBOARD_VOTE_THRESHOLD } from "@/lib/constants";
+import { DEFAULT_TOPIC_SLUG } from "@/lib/topics";
 
-const RATE_LIMIT_MS = 500; // minimum ms between votes per IP
+const RATE_LIMIT_MS = 500;
 
 function hashIp(ip: string): string {
   return crypto.createHash("sha256").update(ip + "cr_salt_2024").digest("hex").slice(0, 32);
+}
+
+async function getTopicId(slug: string): Promise<string | null> {
+  const supabase = await createClient();
+  const { data } = await supabase
+    .from("topics")
+    .select("id")
+    .eq("slug", slug)
+    .single();
+  return data?.id ?? null;
+}
+
+async function fetchCollegesForTopic(topicId: string): Promise<College[]> {
+  const supabase = await createClient();
+  const { data } = await supabase
+    .from("elo_ratings")
+    .select(`rating, wins, losses, matches_played, colleges(*)`)
+    .eq("topic_id", topicId)
+    .order("matches_played", { ascending: true });
+
+  if (!data) return [];
+  return data.map(r => {
+    const college = r.colleges as unknown as College;
+    return {
+      ...college,
+      elo_rating: r.rating,
+      wins: r.wins,
+      losses: r.losses,
+      comparisons: r.matches_played,
+    };
+  });
 }
 
 export async function submitVote(
   winnerId: string,
   loserId: string,
   sessionId: string,
-  previousMatchupIds: [string, string]
+  previousMatchupIds: [string, string],
+  topicSlug: string = DEFAULT_TOPIC_SLUG
 ): Promise<VoteResult> {
   try {
     const headersList = await headers();
@@ -31,7 +64,7 @@ export async function submitVote(
     const supabase = await createClient();
     const admin = createAdminClient();
 
-    // DB-level rate limit: check for a recent vote from this IP in the last RATE_LIMIT_MS
+    // Rate limit: check for a recent vote from this IP
     const cutoff = new Date(Date.now() - RATE_LIMIT_MS).toISOString();
     const { data: recentVote } = await supabase
       .from("votes")
@@ -45,57 +78,57 @@ export async function submitVote(
       return { success: false, nextMatchup: null, error: "Too fast! Slow down." };
     }
 
-    // Fetch both colleges (read — anon client is fine)
-    const { data: colleges, error: fetchError } = await supabase
-      .from("colleges")
-      .select("*")
-      .in("id", [winnerId, loserId]);
+    const topicId = await getTopicId(topicSlug);
+    if (!topicId) return { success: false, nextMatchup: null, error: "Topic not found." };
 
-    if (fetchError || !colleges || colleges.length !== 2) {
-      return { success: false, nextMatchup: null, error: "Colleges not found." };
+    // Fetch elo_ratings for both colleges in this topic
+    const { data: ratings } = await supabase
+      .from("elo_ratings")
+      .select("*")
+      .in("college_id", [winnerId, loserId])
+      .eq("topic_id", topicId);
+
+    if (!ratings || ratings.length !== 2) {
+      return { success: false, nextMatchup: null, error: "Ratings not found." };
     }
 
-    const winner = colleges.find((c) => c.id === winnerId)!;
-    const loser = colleges.find((c) => c.id === loserId)!;
+    const winnerRating = ratings.find(r => r.college_id === winnerId)!;
+    const loserRating = ratings.find(r => r.college_id === loserId)!;
 
     const { winnerNew, loserNew } = calculateNewRatings(
-      winner.elo_rating,
-      loser.elo_rating
+      winnerRating.rating,
+      loserRating.rating
     );
 
-    // Update winner (admin — bypasses RLS)
-    const { error: winnerError } = await admin
-      .from("colleges")
+    await admin
+      .from("elo_ratings")
       .update({
-        elo_rating: winnerNew,
-        comparisons: winner.comparisons + 1,
-        wins: winner.wins + 1,
+        rating: winnerNew,
+        wins: winnerRating.wins + 1,
+        matches_played: winnerRating.matches_played + 1,
       })
-      .eq("id", winnerId);
+      .eq("college_id", winnerId)
+      .eq("topic_id", topicId);
 
-    if (winnerError) throw winnerError;
-
-    // Update loser (admin — bypasses RLS)
-    const { error: loserError } = await admin
-      .from("colleges")
+    await admin
+      .from("elo_ratings")
       .update({
-        elo_rating: loserNew,
-        comparisons: loser.comparisons + 1,
-        losses: loser.losses + 1,
+        rating: loserNew,
+        losses: loserRating.losses + 1,
+        matches_played: loserRating.matches_played + 1,
       })
-      .eq("id", loserId);
+      .eq("college_id", loserId)
+      .eq("topic_id", topicId);
 
-    if (loserError) throw loserError;
-
-    // Insert vote record (admin — bypasses RLS)
     await admin.from("votes").insert({
       winner_college_id: winnerId,
       loser_college_id: loserId,
       ip_hash: ipHash,
       session_id: sessionId,
+      topic_id: topicId,
     });
 
-    // Record head-to-head outcome atomically
+    // Record head-to-head (topic-agnostic aggregate)
     const [canonA, canonB] = winnerId < loserId ? [winnerId, loserId] : [loserId, winnerId];
     await admin.rpc("record_matchup_vote", {
       p_college_a_id: canonA,
@@ -103,7 +136,7 @@ export async function submitVote(
       p_winner_id: winnerId,
     });
 
-    // Increment the persistent vote counter cookie
+    // Increment persistent vote cookie
     const cookieStore = await cookies();
     const currentCount = parseInt(cookieStore.get("cr_votes")?.value ?? "0", 10);
     const newVoteCount = currentCount + 1;
@@ -114,22 +147,13 @@ export async function submitVote(
       sameSite: "lax",
     });
 
-    // Fetch all colleges for next matchup (fresh data)
-    const { data: allColleges, error: allError } = await supabase
-      .from("colleges")
-      .select("*")
-      .order("comparisons", { ascending: true });
-
-    if (allError || !allColleges) {
-      return { success: true, nextMatchup: null };
-    }
-
-    const previousMatchup: Matchup = {
-      left: colleges.find((c) => c.id === previousMatchupIds[0]) ?? winner,
-      right: colleges.find((c) => c.id === previousMatchupIds[1]) ?? loser,
-    };
-
-    const nextMatchup = generateMatchup(allColleges, previousMatchup);
+    // Generate next matchup for this topic
+    const allColleges = await fetchCollegesForTopic(topicId);
+    const prevLeft = allColleges.find(c => c.id === previousMatchupIds[0]);
+    const prevRight = allColleges.find(c => c.id === previousMatchupIds[1]);
+    const previousMatchup =
+      prevLeft && prevRight ? { left: prevLeft, right: prevRight } : null;
+    const nextMatchup = generateMatchup(allColleges, previousMatchup ?? undefined);
 
     return { success: true, nextMatchup, voteCount: newVoteCount };
   } catch (err) {
@@ -141,64 +165,58 @@ export async function submitVote(
 export async function submitSkip(
   leftId: string,
   rightId: string,
-  previousMatchupIds: [string, string]
+  previousMatchupIds: [string, string],
+  topicSlug: string = DEFAULT_TOPIC_SLUG
 ): Promise<{ nextMatchup: Matchup | null }> {
   try {
     const supabase = await createClient();
     const admin = createAdminClient();
 
+    const topicId = await getTopicId(topicSlug);
+    if (!topicId) return { nextMatchup: null };
+
+    // Skips are topic-agnostic — tracked on colleges table
     const { data: colleges } = await supabase
       .from("colleges")
-      .select("*")
+      .select("id, skips")
       .in("id", [leftId, rightId]);
 
-    if (!colleges || colleges.length !== 2) return { nextMatchup: null };
-
-    // Increment skip counter for both schools (no ELO deduction)
-    for (const college of colleges) {
-      await admin
-        .from("colleges")
-        .update({
-          skips: college.skips + 1,
-        })
-        .eq("id", college.id);
+    if (colleges && colleges.length === 2) {
+      for (const college of colleges) {
+        await admin
+          .from("colleges")
+          .update({ skips: college.skips + 1 })
+          .eq("id", college.id);
+      }
     }
 
-    // Record head-to-head skip atomically
     const [canonA, canonB] = leftId < rightId ? [leftId, rightId] : [rightId, leftId];
     await admin.rpc("record_matchup_skip", {
       p_college_a_id: canonA,
       p_college_b_id: canonB,
     });
 
-    const { data: allColleges } = await supabase
-      .from("colleges")
-      .select("*")
-      .order("comparisons", { ascending: true });
+    const allColleges = await fetchCollegesForTopic(topicId);
+    const prevLeft = allColleges.find(c => c.id === previousMatchupIds[0]);
+    const prevRight = allColleges.find(c => c.id === previousMatchupIds[1]);
+    const previousMatchup =
+      prevLeft && prevRight ? { left: prevLeft, right: prevRight } : null;
 
-    if (!allColleges) return { nextMatchup: null };
-
-    const previousMatchup: Matchup = {
-      left: colleges.find((c) => c.id === previousMatchupIds[0]) ?? colleges[0],
-      right: colleges.find((c) => c.id === previousMatchupIds[1]) ?? colleges[1],
-    };
-
-    return { nextMatchup: generateMatchup(allColleges, previousMatchup) };
+    return { nextMatchup: generateMatchup(allColleges, previousMatchup ?? undefined) };
   } catch (err) {
     console.error("Skip error:", err);
     return { nextMatchup: null };
   }
 }
 
-export async function getInitialMatchup(): Promise<Matchup | null> {
-  const supabase = await createClient();
+export async function getInitialMatchup(
+  topicSlug: string = DEFAULT_TOPIC_SLUG
+): Promise<Matchup | null> {
+  const topicId = await getTopicId(topicSlug);
+  if (!topicId) return null;
 
-  const { data: colleges, error } = await supabase
-    .from("colleges")
-    .select("*")
-    .order("comparisons", { ascending: true });
-
-  if (error || !colleges || colleges.length < 2) return null;
+  const colleges = await fetchCollegesForTopic(topicId);
+  if (colleges.length < 2) return null;
 
   return generateMatchup(colleges);
 }

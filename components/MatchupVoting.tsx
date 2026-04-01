@@ -1,22 +1,35 @@
 "use client";
 
 import { useState, useEffect, useCallback, useRef } from "react";
+import { useRouter } from "next/navigation";
 import Link from "next/link";
 import { Matchup } from "@/types";
-import { submitVote, submitSkip } from "@/app/actions/vote";
+import { submitVote, submitSkip, getInitialMatchup } from "@/app/actions/vote";
 import { LEADERBOARD_VOTE_THRESHOLD } from "@/lib/constants";
+import { getTopicQuestion, PINNED_COUNT } from "@/lib/topics";
 import CollegeCard from "./CollegeCard";
+import TopicSelector from "./TopicSelector";
 
 interface MatchupVotingProps {
   initialMatchup: Matchup;
   sessionId: string;
   initialVoteCount: number;
+  initialTopicSlug: string;
+  topics: { slug: string; name: string }[];
 }
 
 type VoteState = "idle" | "voting" | "animating";
 
-export default function MatchupVoting({ initialMatchup, sessionId, initialVoteCount }: MatchupVotingProps) {
+export default function MatchupVoting({
+  initialMatchup,
+  sessionId,
+  initialVoteCount,
+  initialTopicSlug,
+  topics,
+}: MatchupVotingProps) {
+  const router = useRouter();
   const [matchup, setMatchup] = useState<Matchup>(initialMatchup);
+  const [topicSlug, setTopicSlug] = useState(initialTopicSlug);
   const [voteState, setVoteState] = useState<VoteState>("idle");
   const [selectedSide, setSelectedSide] = useState<"left" | "right" | null>(null);
   const [totalVotes, setTotalVotes] = useState(0);
@@ -26,16 +39,49 @@ export default function MatchupVoting({ initialMatchup, sessionId, initialVoteCo
 
   const leaderboardUnlocked = cumulativeVotes >= LEADERBOARD_VOTE_THRESHOLD;
   const remaining = Math.max(0, LEADERBOARD_VOTE_THRESHOLD - cumulativeVotes);
+  const currentTopic = topics.find(t => t.slug === topicSlug) ?? topics[0];
+  const heading = getTopicQuestion(topicSlug, currentTopic?.name ?? topicSlug);
+
+  // Restore topic from localStorage on mount (only if URL has no explicit topic param)
+  useEffect(() => {
+    if (!window.location.search.includes("topic=")) {
+      const saved = localStorage.getItem("cc_topic");
+      if (saved && saved !== topicSlug && topics.some(t => t.slug === saved)) {
+        handleTopicChange(saved);
+      }
+    }
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
+  const handleTopicChange = useCallback(
+    async (slug: string) => {
+      if (slug === topicSlug || submittingRef.current) return;
+      submittingRef.current = true;
+      setVoteState("animating");
+
+      localStorage.setItem("cc_topic", slug);
+      router.replace(`/?topic=${slug}`, { scroll: false });
+
+      const newMatchup = await getInitialMatchup(slug);
+      setTopicSlug(slug);
+      if (newMatchup) setMatchup(newMatchup);
+      setVoteState("idle");
+      submittingRef.current = false;
+    },
+    [topicSlug, router]
+  );
 
   const handleSkip = useCallback(async () => {
     if (voteState !== "idle" || submittingRef.current) return;
     submittingRef.current = true;
     setVoteState("voting");
 
-    const result = await submitSkip(matchup.left.id, matchup.right.id, [
+    const result = await submitSkip(
       matchup.left.id,
       matchup.right.id,
-    ]);
+      [matchup.left.id, matchup.right.id],
+      topicSlug
+    );
 
     setTimeout(() => {
       setVoteState("animating");
@@ -45,7 +91,7 @@ export default function MatchupVoting({ initialMatchup, sessionId, initialVoteCo
         submittingRef.current = false;
       }, 150);
     }, 200);
-  }, [matchup, voteState]);
+  }, [matchup, voteState, topicSlug]);
 
   const handleVote = useCallback(
     async (side: "left" | "right") => {
@@ -58,10 +104,13 @@ export default function MatchupVoting({ initialMatchup, sessionId, initialVoteCo
       const winner = side === "left" ? matchup.left : matchup.right;
       const loser = side === "left" ? matchup.right : matchup.left;
 
-      const result = await submitVote(winner.id, loser.id, sessionId, [
-        matchup.left.id,
-        matchup.right.id,
-      ]);
+      const result = await submitVote(
+        winner.id,
+        loser.id,
+        sessionId,
+        [matchup.left.id, matchup.right.id],
+        topicSlug
+      );
 
       if (!result.success) {
         setError(result.error ?? "Something went wrong.");
@@ -71,7 +120,7 @@ export default function MatchupVoting({ initialMatchup, sessionId, initialVoteCo
         return;
       }
 
-      setTotalVotes((v) => v + 1);
+      setTotalVotes(v => v + 1);
       if (result.voteCount !== undefined) setCumulativeVotes(result.voteCount);
 
       setTimeout(() => {
@@ -84,7 +133,7 @@ export default function MatchupVoting({ initialMatchup, sessionId, initialVoteCo
         }, 150);
       }, 300);
     },
-    [matchup, sessionId, voteState]
+    [matchup, sessionId, voteState, topicSlug]
   );
 
   // Keyboard shortcuts
@@ -101,7 +150,28 @@ export default function MatchupVoting({ initialMatchup, sessionId, initialVoteCo
   const isDisabled = voteState !== "idle";
 
   return (
-    <div className="w-full max-w-3xl mx-auto flex flex-col gap-6">
+    <div className="w-full max-w-3xl mx-auto flex flex-col gap-5">
+      {/* Topic selector */}
+      <div className="flex justify-center">
+        <TopicSelector
+          topics={topics}
+          selectedSlug={topicSlug}
+          onSelect={handleTopicChange}
+          pinnedCount={PINNED_COUNT}
+          disabled={isDisabled}
+        />
+      </div>
+
+      {/* Heading */}
+      <div className="text-center">
+        <h1 className="text-xl sm:text-2xl font-bold text-zinc-900 dark:text-zinc-100 tracking-tight">
+          {heading}
+        </h1>
+        <p className="mt-1.5 text-sm text-zinc-500 dark:text-zinc-400">
+          Click a card to vote · ELO updates instantly after each matchup
+        </p>
+      </div>
+
       {/* Leaderboard unlock progress / unlocked CTA */}
       <div className="flex flex-col items-center gap-2">
         {leaderboardUnlocked ? (
@@ -140,11 +210,9 @@ export default function MatchupVoting({ initialMatchup, sessionId, initialVoteCo
 
       {/* Cards */}
       <div
-        className={`
-          grid grid-cols-2 gap-3 sm:gap-4
-          transition-opacity duration-150
-          ${voteState === "animating" ? "opacity-0" : "opacity-100"}
-        `}
+        className={`grid grid-cols-2 gap-3 sm:gap-4 transition-opacity duration-150 ${
+          voteState === "animating" ? "opacity-0" : "opacity-100"
+        }`}
       >
         <CollegeCard
           college={matchup.left}
@@ -171,7 +239,7 @@ export default function MatchupVoting({ initialMatchup, sessionId, initialVoteCo
         </span>
       </div>
 
-      {/* Skip button */}
+      {/* Skip */}
       <div className="flex items-center justify-center -mt-1">
         <button
           onClick={handleSkip}
@@ -197,8 +265,12 @@ export default function MatchupVoting({ initialMatchup, sessionId, initialVoteCo
       </p>
 
       {error && (
-        <p className="text-center text-sm text-red-500 dark:text-red-400">
-          {error}
+        <p className="text-center text-sm text-red-500 dark:text-red-400">{error}</p>
+      )}
+
+      {totalVotes > 0 && (
+        <p className="text-center text-xs text-zinc-400 dark:text-zinc-600 -mt-2">
+          {totalVotes} vote{totalVotes !== 1 ? "s" : ""} this session
         </p>
       )}
     </div>
