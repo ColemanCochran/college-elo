@@ -130,6 +130,52 @@ export async function submitVote(
   }
 }
 
+export async function submitSkip(
+  leftId: string,
+  rightId: string,
+  previousMatchupIds: [string, string]
+): Promise<{ nextMatchup: Matchup | null }> {
+  try {
+    const supabase = await createClient();
+    const admin = createAdminClient();
+
+    const { data: colleges } = await supabase
+      .from("colleges")
+      .select("*")
+      .in("id", [leftId, rightId]);
+
+    if (!colleges || colleges.length !== 2) return { nextMatchup: null };
+
+    // Apply -1 ELO nudge and increment skip counter for both schools
+    for (const college of colleges) {
+      await admin
+        .from("colleges")
+        .update({
+          elo_rating: Math.max(1000, college.elo_rating - 1),
+          skips: college.skips + 1,
+        })
+        .eq("id", college.id);
+    }
+
+    const { data: allColleges } = await supabase
+      .from("colleges")
+      .select("*")
+      .order("comparisons", { ascending: true });
+
+    if (!allColleges) return { nextMatchup: null };
+
+    const previousMatchup: Matchup = {
+      left: colleges.find((c) => c.id === previousMatchupIds[0]) ?? colleges[0],
+      right: colleges.find((c) => c.id === previousMatchupIds[1]) ?? colleges[1],
+    };
+
+    return { nextMatchup: generateMatchup(allColleges, previousMatchup) };
+  } catch (err) {
+    console.error("Skip error:", err);
+    return { nextMatchup: null };
+  }
+}
+
 export async function getInitialMatchup(): Promise<Matchup | null> {
   const supabase = await createClient();
 

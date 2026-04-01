@@ -7,6 +7,7 @@ export interface College {
   comparisons: number;
   wins: number;
   losses: number;
+  skips: number;
   created_at: string;
   updated_at: string;
 }
@@ -37,5 +38,5 @@ export interface LeaderboardEntry extends College {
   win_rate: number;
 }
 
-export type SortField = "elo_rating" | "comparisons" | "win_rate";
+export type SortField = "elo_rating" | "comparisons" | "win_rate" | "skip_rate";
 export type SortDirection = "asc" | "desc";

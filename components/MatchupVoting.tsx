@@ -3,7 +3,7 @@
 import { useState, useEffect, useCallback, useRef } from "react";
 import Link from "next/link";
 import { Matchup } from "@/types";
-import { submitVote } from "@/app/actions/vote";
+import { submitVote, submitSkip } from "@/app/actions/vote";
 import { LEADERBOARD_VOTE_THRESHOLD } from "@/lib/constants";
 import CollegeCard from "./CollegeCard";
 
@@ -26,6 +26,26 @@ export default function MatchupVoting({ initialMatchup, sessionId, initialVoteCo
 
   const leaderboardUnlocked = cumulativeVotes >= LEADERBOARD_VOTE_THRESHOLD;
   const remaining = Math.max(0, LEADERBOARD_VOTE_THRESHOLD - cumulativeVotes);
+
+  const handleSkip = useCallback(async () => {
+    if (voteState !== "idle" || submittingRef.current) return;
+    submittingRef.current = true;
+    setVoteState("voting");
+
+    const result = await submitSkip(matchup.left.id, matchup.right.id, [
+      matchup.left.id,
+      matchup.right.id,
+    ]);
+
+    setTimeout(() => {
+      setVoteState("animating");
+      setTimeout(() => {
+        if (result.nextMatchup) setMatchup(result.nextMatchup);
+        setVoteState("idle");
+        submittingRef.current = false;
+      }, 150);
+    }, 200);
+  }, [matchup, voteState]);
 
   const handleVote = useCallback(
     async (side: "left" | "right") => {
@@ -143,12 +163,24 @@ export default function MatchupVoting({ initialMatchup, sessionId, initialVoteCo
         />
       </div>
 
-      {/* VS divider */}
-      <div className="relative -mt-2 flex items-center justify-center pointer-events-none">
-        <div className="absolute inset-x-0 top-1/2 -translate-y-1/2 flex items-center justify-center">
+      {/* VS divider + skip */}
+      <div className="relative -mt-2 flex items-center justify-center">
+        <div className="absolute inset-x-0 top-1/2 -translate-y-1/2 flex items-center justify-center pointer-events-none">
           <span className="px-3 py-1 rounded-full bg-zinc-100 dark:bg-zinc-800 text-xs font-bold text-zinc-400 dark:text-zinc-500 border border-zinc-200 dark:border-zinc-700 tracking-widest">
             VS
           </span>
+        </div>
+        <div className="flex justify-center mt-8">
+          <button
+            onClick={handleSkip}
+            disabled={isDisabled}
+            className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium text-zinc-400 dark:text-zinc-600 hover:text-zinc-600 dark:hover:text-zinc-400 hover:bg-zinc-100 dark:hover:bg-zinc-800 transition-colors disabled:opacity-40 disabled:cursor-not-allowed"
+          >
+            <svg className="w-3 h-3" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+              <path strokeLinecap="round" strokeLinejoin="round" d="M13 5l7 7-7 7M5 5l7 7-7 7" />
+            </svg>
+            Skip — I don&apos;t know these schools
+          </button>
         </div>
       </div>
 

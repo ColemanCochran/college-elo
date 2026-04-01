@@ -69,10 +69,14 @@ export default function LeaderboardTable({ colleges }: LeaderboardTableProps) {
   const [search, setSearch] = useState("");
 
   const sorted = useMemo(() => {
-    let list = colleges.map((c) => ({
-      ...c,
-      win_rate: calcWinRate(c.wins, c.comparisons),
-    }));
+    let list = colleges.map((c) => {
+      const appearances = c.comparisons + (c.skips ?? 0);
+      return {
+        ...c,
+        win_rate: calcWinRate(c.wins, c.comparisons),
+        skip_rate: appearances > 0 ? Math.round((c.skips ?? 0) / appearances * 100) : 0,
+      };
+    });
 
     if (search.trim()) {
       const q = search.toLowerCase();
@@ -83,6 +87,7 @@ export default function LeaderboardTable({ colleges }: LeaderboardTableProps) {
       if (sortField === "elo_rating") return b.elo_rating - a.elo_rating;
       if (sortField === "comparisons") return b.comparisons - a.comparisons;
       if (sortField === "win_rate") return b.win_rate - a.win_rate;
+      if (sortField === "skip_rate") return b.skip_rate - a.skip_rate;
       return 0;
     });
 
@@ -126,6 +131,7 @@ export default function LeaderboardTable({ colleges }: LeaderboardTableProps) {
           <SortButton field="elo_rating" label="ELO" />
           <SortButton field="comparisons" label="Votes" />
           <SortButton field="win_rate" label="Win %" />
+          <SortButton field="skip_rate" label="Skip %" />
         </div>
       </div>
 
@@ -149,6 +155,9 @@ export default function LeaderboardTable({ colleges }: LeaderboardTableProps) {
                 </th>
                 <th className="text-right px-4 py-3 font-medium text-zinc-500 dark:text-zinc-400 hidden md:table-cell">
                   Win %
+                </th>
+                <th className="text-right px-4 py-3 font-medium text-zinc-500 dark:text-zinc-400 hidden lg:table-cell">
+                  Skip %
                 </th>
               </tr>
             </thead>
@@ -239,13 +248,28 @@ export default function LeaderboardTable({ colleges }: LeaderboardTableProps) {
                         </span>
                       </div>
                     </td>
+
+                    {/* Skip % */}
+                    <td className="px-4 py-3 text-right hidden lg:table-cell">
+                      <div className="flex items-center justify-end gap-2">
+                        <div className="w-16 h-1.5 rounded-full bg-zinc-100 dark:bg-zinc-800 overflow-hidden">
+                          <div
+                            className="h-full rounded-full bg-amber-400"
+                            style={{ width: `${college.skip_rate}%` }}
+                          />
+                        </div>
+                        <span className="text-zinc-600 dark:text-zinc-400 text-xs font-mono w-12 text-right">
+                          {(college.comparisons + (college.skips ?? 0)) === 0 ? "—" : `${college.skip_rate}%`}
+                        </span>
+                      </div>
+                    </td>
                   </tr>
                 );
               })}
 
               {sorted.length === 0 && (
                 <tr>
-                  <td colSpan={5} className="px-4 py-8 text-center text-zinc-400">
+                  <td colSpan={6} className="px-4 py-8 text-center text-zinc-400">
                     No colleges found.
                   </td>
                 </tr>
