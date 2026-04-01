@@ -29,11 +29,10 @@ export default async function LeaderboardPage({
 
   const supabase = await createClient();
 
-  const { data: topicRow } = await supabase
-    .from("topics")
-    .select("id")
-    .eq("slug", topicSlug)
-    .single();
+  const [{ data: topicRow }, { count: globalVoteCount }] = await Promise.all([
+    supabase.from("topics").select("id").eq("slug", topicSlug).single(),
+    supabase.from("votes").select("*", { count: "exact", head: true }),
+  ]);
 
   const { data: ratingsData, error } = topicRow
     ? await supabase
@@ -104,12 +103,25 @@ export default async function LeaderboardPage({
           <h1 className="text-2xl sm:text-3xl font-bold text-zinc-900 dark:text-zinc-100 tracking-tight">
             College Rankings
           </h1>
-          <p className="mt-1 text-sm text-zinc-500 dark:text-zinc-400">
-            Community-voted ELO rankings &middot;{" "}
-            <span className="font-medium text-zinc-700 dark:text-zinc-300">
-              {totalVotes.toLocaleString()} votes in this category
+          <div className="mt-2 flex flex-wrap items-center gap-x-4 gap-y-1 text-sm text-zinc-500 dark:text-zinc-400">
+            <span>
+              <span className="font-semibold text-zinc-900 dark:text-zinc-100">
+                {(globalVoteCount ?? 0).toLocaleString()}
+              </span>{" "}
+              total votes cast
             </span>
-          </p>
+            {topicSlug !== "overall" && (
+              <span className="text-zinc-300 dark:text-zinc-700">·</span>
+            )}
+            {topicSlug !== "overall" && (
+              <span>
+                <span className="font-semibold text-zinc-900 dark:text-zinc-100">
+                  {totalVotes.toLocaleString()}
+                </span>{" "}
+                in {topics.find(t => t.slug === topicSlug)?.name ?? topicSlug}
+              </span>
+            )}
+          </div>
         </div>
 
         {error ? (
