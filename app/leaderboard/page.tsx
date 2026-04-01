@@ -44,31 +44,21 @@ export default async function LeaderboardPage() {
             CollegeRank
           </Link>
           <div className="flex items-center gap-2">
-          <Link
-            href="/head-to-head"
-            className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-zinc-100 dark:bg-zinc-800 hover:bg-zinc-200 dark:hover:bg-zinc-700 text-sm font-medium text-zinc-700 dark:text-zinc-300 transition-colors"
-          >
-            Head to Head
-          </Link>
-          <Link
-            href="/"
-            className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-zinc-900 dark:bg-zinc-100 hover:bg-zinc-700 dark:hover:bg-zinc-300 text-sm font-medium text-white dark:text-zinc-900 transition-colors"
-          >
-            <svg
-              className="w-3.5 h-3.5"
-              fill="none"
-              viewBox="0 0 24 24"
-              stroke="currentColor"
-              strokeWidth={2}
+            <Link
+              href="/"
+              className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-zinc-900 dark:bg-zinc-100 hover:bg-zinc-700 dark:hover:bg-zinc-300 text-sm font-medium text-white dark:text-zinc-900 transition-colors"
             >
-              <path
-                strokeLinecap="round"
-                strokeLinejoin="round"
-                d="M7 16l-4-4m0 0l4-4m-4 4h18"
-              />
-            </svg>
-            Vote
-          </Link>
+              <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                <path strokeLinecap="round" strokeLinejoin="round" d="M7 16l-4-4m0 0l4-4m-4 4h18" />
+              </svg>
+              Vote
+            </Link>
+            <Link
+              href="/head-to-head"
+              className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-zinc-100 dark:bg-zinc-800 hover:bg-zinc-200 dark:hover:bg-zinc-700 text-sm font-medium text-zinc-700 dark:text-zinc-300 transition-colors"
+            >
+              Head to Head
+            </Link>
           </div>
         </div>
       </header>
