@@ -43,6 +43,13 @@ export default async function LeaderboardPage() {
           >
             CollegeRank
           </Link>
+          <div className="flex items-center gap-2">
+          <Link
+            href="/head-to-head"
+            className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-zinc-100 dark:bg-zinc-800 hover:bg-zinc-200 dark:hover:bg-zinc-700 text-sm font-medium text-zinc-700 dark:text-zinc-300 transition-colors"
+          >
+            Head to Head
+          </Link>
           <Link
             href="/"
             className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-zinc-900 dark:bg-zinc-100 hover:bg-zinc-700 dark:hover:bg-zinc-300 text-sm font-medium text-white dark:text-zinc-900 transition-colors"
@@ -62,6 +69,7 @@ export default async function LeaderboardPage() {
             </svg>
             Vote
           </Link>
+          </div>
         </div>
       </header>
 

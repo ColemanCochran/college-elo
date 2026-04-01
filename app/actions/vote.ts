@@ -95,6 +95,14 @@ export async function submitVote(
       session_id: sessionId,
     });
 
+    // Record head-to-head outcome atomically
+    const [canonA, canonB] = winnerId < loserId ? [winnerId, loserId] : [loserId, winnerId];
+    await admin.rpc("record_matchup_vote", {
+      p_college_a_id: canonA,
+      p_college_b_id: canonB,
+      p_winner_id: winnerId,
+    });
+
     // Increment the persistent vote counter cookie
     const cookieStore = await cookies();
     const currentCount = parseInt(cookieStore.get("cr_votes")?.value ?? "0", 10);
@@ -156,6 +164,13 @@ export async function submitSkip(
         })
         .eq("id", college.id);
     }
+
+    // Record head-to-head skip atomically
+    const [canonA, canonB] = leftId < rightId ? [leftId, rightId] : [rightId, leftId];
+    await admin.rpc("record_matchup_skip", {
+      p_college_a_id: canonA,
+      p_college_b_id: canonB,
+    });
 
     const { data: allColleges } = await supabase
       .from("colleges")
