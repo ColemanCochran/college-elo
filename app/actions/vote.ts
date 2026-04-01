@@ -154,12 +154,11 @@ export async function submitSkip(
 
     if (!colleges || colleges.length !== 2) return { nextMatchup: null };
 
-    // Apply -1 ELO nudge and increment skip counter for both schools
+    // Increment skip counter for both schools (no ELO deduction)
     for (const college of colleges) {
       await admin
         .from("colleges")
         .update({
-          elo_rating: Math.max(1000, college.elo_rating - 1),
           skips: college.skips + 1,
         })
         .eq("id", college.id);
