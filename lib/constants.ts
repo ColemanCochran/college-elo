@@ -1,0 +1,1 @@
+export const LEADERBOARD_VOTE_THRESHOLD = 8;

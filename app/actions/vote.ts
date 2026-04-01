@@ -6,8 +6,7 @@ import { generateMatchup } from "@/lib/matchmaking";
 import { VoteResult, Matchup } from "@/types";
 import { headers, cookies } from "next/headers";
 import crypto from "crypto";
-
-export const LEADERBOARD_VOTE_THRESHOLD = 8;
+import { LEADERBOARD_VOTE_THRESHOLD } from "@/lib/constants";
 
 const RATE_LIMIT_MS = 500; // minimum ms between votes per IP
 

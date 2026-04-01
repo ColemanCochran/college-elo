@@ -1,4 +1,5 @@
-import { getInitialMatchup, LEADERBOARD_VOTE_THRESHOLD } from "@/app/actions/vote";
+import { getInitialMatchup } from "@/app/actions/vote";
+import { LEADERBOARD_VOTE_THRESHOLD } from "@/lib/constants";
 import MatchupVoting from "@/components/MatchupVoting";
 import Link from "next/link";
 import { cookies } from "next/headers";

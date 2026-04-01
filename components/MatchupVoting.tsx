@@ -3,7 +3,8 @@
 import { useState, useEffect, useCallback, useRef } from "react";
 import Link from "next/link";
 import { Matchup } from "@/types";
-import { submitVote, LEADERBOARD_VOTE_THRESHOLD } from "@/app/actions/vote";
+import { submitVote } from "@/app/actions/vote";
+import { LEADERBOARD_VOTE_THRESHOLD } from "@/lib/constants";
 import CollegeCard from "./CollegeCard";
 
 interface MatchupVotingProps {

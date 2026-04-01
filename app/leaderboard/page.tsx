@@ -4,7 +4,7 @@ import EloExplainer from "@/components/EloExplainer";
 import Link from "next/link";
 import { cookies } from "next/headers";
 import { redirect } from "next/navigation";
-import { LEADERBOARD_VOTE_THRESHOLD } from "@/app/actions/vote";
+import { LEADERBOARD_VOTE_THRESHOLD } from "@/lib/constants";
 
 // Revalidate every 60 seconds for near-real-time freshness
 export const revalidate = 60;
