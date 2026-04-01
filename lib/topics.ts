@@ -4,10 +4,7 @@ export const TOPICS = [
   { slug: "business-economics", name: "Business/Economics", description: "Business, economics, and finance programs" },
   { slug: "engineering",        name: "Engineering",        description: "Engineering programs across disciplines" },
   { slug: "biology",            name: "Biology",            description: "Life sciences and pre-med programs" },
-  { slug: "psychology",         name: "Psychology",         description: "Psychology research and clinical programs" },
-  { slug: "political-science", name: "Political Science", description: "Political science and public policy" },
-  { slug: "communications",    name: "Communications",    description: "Journalism, media, and communications" },
-  { slug: "mathematics",       name: "Mathematics",       description: "Math programs and research" },
+  { slug: "liberal-arts",      name: "Liberal Arts",      description: "Humanities, social sciences, and liberal arts programs" },
   { slug: "post-grad-success", name: "Post-Grad Success", description: "Career outcomes, salaries, and placement rates" },
   { slug: "quality-of-life",   name: "Quality of Life",   description: "Campus life, location, and student experience" },
 ] as const;
