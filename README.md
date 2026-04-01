@@ -1,4 +1,4 @@
-# CollegeRank
+# College Clash
 
 ELO-based college prestige ranking site. Community votes determine which colleges rise and fall.
 

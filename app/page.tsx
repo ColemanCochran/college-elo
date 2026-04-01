@@ -31,7 +31,7 @@ export default async function Home() {
         <div className="max-w-3xl mx-auto px-4 py-3 flex items-center justify-between">
           <div>
             <span className="text-base font-bold text-zinc-900 dark:text-zinc-100 tracking-tight">
-              CollegeRank
+              College Clash
             </span>
             <span className="ml-2 text-xs text-zinc-400 dark:text-zinc-600 hidden sm:inline">
               ELO-powered college rankings
@@ -89,7 +89,7 @@ export default async function Home() {
       {/* Footer */}
       <footer className="border-t border-zinc-100 dark:border-zinc-900 py-4 px-4">
         <div className="max-w-3xl mx-auto flex items-center justify-between text-xs text-zinc-400 dark:text-zinc-600">
-          <span>CollegeRank &copy; {new Date().getFullYear()}</span>
+          <span>College Clash &copy; {new Date().getFullYear()}</span>
           {leaderboardUnlocked ? (
             <Link href="/leaderboard" className="hover:text-zinc-600 dark:hover:text-zinc-400 transition-colors">
               View full rankings →

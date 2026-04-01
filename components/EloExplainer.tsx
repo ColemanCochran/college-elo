@@ -6,7 +6,7 @@ export default function EloExplainer() {
           How the Rankings Work
         </h2>
         <p className="text-sm text-zinc-500 dark:text-zinc-400 mb-8">
-          CollegeRank uses the ELO rating system — the same algorithm used in
+          College Clash uses the ELO rating system — the same algorithm used in
           competitive chess — to determine college rankings through pairwise
           community voting.
         </p>

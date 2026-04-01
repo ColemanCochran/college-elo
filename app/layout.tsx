@@ -13,11 +13,11 @@ const geistMono = Geist_Mono({
 });
 
 export const metadata: Metadata = {
-  title: "CollegeRank — Community College Rankings",
+  title: "College Clash — Community College Rankings",
   description:
     "Vote to rank the top 50 U.S. colleges. Community-powered ELO ratings updated in real time.",
   openGraph: {
-    title: "CollegeRank",
+    title: "College Clash",
     description: "Which college do you think is better? Vote to find out.",
     type: "website",
   },
