@@ -64,7 +64,7 @@ export default async function Home() {
           {/* Tagline */}
           <div className="text-center mb-8 sm:mb-10">
             <h1 className="text-2xl sm:text-3xl font-bold text-zinc-900 dark:text-zinc-100 tracking-tight">
-              Which college is better?
+              Pick a college
             </h1>
             <p className="mt-2 text-sm text-zinc-500 dark:text-zinc-400">
               Click a card to vote. ELO updates instantly after each matchup.

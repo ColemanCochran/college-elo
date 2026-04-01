@@ -181,7 +181,7 @@ export default function MatchupVoting({ initialMatchup, sessionId, initialVoteCo
           <svg className="w-3 h-3" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
             <path strokeLinecap="round" strokeLinejoin="round" d="M13 5l7 7-7 7M5 5l7 7-7 7" />
           </svg>
-          Skip — I don&apos;t know these schools
+          Skip
         </button>
       </div>
 
