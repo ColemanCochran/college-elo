@@ -168,7 +168,7 @@ export default function MatchupVoting({
       <div className="flex flex-col items-center gap-2">
         {leaderboardUnlocked ? (
           <Link
-            href="/leaderboard"
+            href={`/leaderboard?topic=${topicSlug}`}
             className="flex items-center gap-1.5 px-4 py-2 rounded-lg bg-zinc-900 dark:bg-zinc-100 hover:bg-zinc-700 dark:hover:bg-zinc-300 text-sm font-medium text-white dark:text-zinc-900 transition-colors"
           >
             <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>

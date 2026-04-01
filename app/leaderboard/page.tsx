@@ -1,6 +1,5 @@
 import { createClient } from "@/lib/supabase-server";
 import LeaderboardTable from "@/components/LeaderboardTable";
-import EloExplainer from "@/components/EloExplainer";
 import Link from "next/link";
 import { cookies } from "next/headers";
 import { redirect } from "next/navigation";
@@ -90,6 +89,12 @@ export default async function LeaderboardPage({
             >
               Head to Head
             </Link>
+            <Link
+              href="/about"
+              className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-zinc-100 dark:bg-zinc-800 hover:bg-zinc-200 dark:hover:bg-zinc-700 text-sm font-medium text-zinc-700 dark:text-zinc-300 transition-colors"
+            >
+              About
+            </Link>
           </div>
         </div>
       </header>
@@ -133,7 +138,11 @@ export default async function LeaderboardPage({
           </div>
         )}
 
-        <EloExplainer />
+        <div className="mt-10 text-center">
+          <Link href="/about" className="text-sm text-zinc-400 dark:text-zinc-600 hover:text-zinc-600 dark:hover:text-zinc-400 transition-colors">
+            How do ELO rankings work? →
+          </Link>
+        </div>
       </main>
 
       <footer className="border-t border-zinc-100 dark:border-zinc-900 py-4 px-4">

@@ -50,7 +50,7 @@ export default async function Home({
           </div>
           {leaderboardUnlocked ? (
             <Link
-              href="/leaderboard"
+              href={`/leaderboard?topic=${topicSlug}`}
               className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-zinc-100 dark:bg-zinc-800 hover:bg-zinc-200 dark:hover:bg-zinc-700 text-sm font-medium text-zinc-700 dark:text-zinc-300 transition-colors"
             >
               <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
@@ -97,13 +97,18 @@ export default async function Home({
       <footer className="border-t border-zinc-100 dark:border-zinc-900 py-4 px-4">
         <div className="max-w-3xl mx-auto flex items-center justify-between text-xs text-zinc-400 dark:text-zinc-600">
           <span>College Clash &copy; {new Date().getFullYear()}</span>
-          {leaderboardUnlocked ? (
-            <Link href="/leaderboard" className="hover:text-zinc-600 dark:hover:text-zinc-400 transition-colors">
-              View full rankings →
+          <div className="flex items-center gap-4">
+            <Link href="/about" className="hover:text-zinc-600 dark:hover:text-zinc-400 transition-colors">
+              About
             </Link>
-          ) : (
-            <span>Rankings unlock after {LEADERBOARD_VOTE_THRESHOLD} votes</span>
-          )}
+            {leaderboardUnlocked ? (
+              <Link href={`/leaderboard?topic=${topicSlug}`} className="hover:text-zinc-600 dark:hover:text-zinc-400 transition-colors">
+                View full rankings →
+              </Link>
+            ) : (
+              <span>Rankings unlock after {LEADERBOARD_VOTE_THRESHOLD} votes</span>
+            )}
+          </div>
         </div>
       </footer>
     </div>
