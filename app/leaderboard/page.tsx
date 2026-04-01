@@ -2,6 +2,9 @@ import { createClient } from "@/lib/supabase-server";
 import LeaderboardTable from "@/components/LeaderboardTable";
 import EloExplainer from "@/components/EloExplainer";
 import Link from "next/link";
+import { cookies } from "next/headers";
+import { redirect } from "next/navigation";
+import { LEADERBOARD_VOTE_THRESHOLD } from "@/app/actions/vote";
 
 // Revalidate every 60 seconds for near-real-time freshness
 export const revalidate = 60;
@@ -12,6 +15,12 @@ export const metadata = {
 };
 
 export default async function LeaderboardPage() {
+  const cookieStore = await cookies();
+  const voteCount = parseInt(cookieStore.get("cr_votes")?.value ?? "0", 10);
+  if (voteCount < LEADERBOARD_VOTE_THRESHOLD) {
+    redirect("/");
+  }
+
   const supabase = await createClient();
 
   const { data: colleges, error } = await supabase

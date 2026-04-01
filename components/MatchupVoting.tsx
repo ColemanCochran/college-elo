@@ -1,24 +1,30 @@
 "use client";
 
 import { useState, useEffect, useCallback, useRef } from "react";
+import Link from "next/link";
 import { Matchup } from "@/types";
-import { submitVote } from "@/app/actions/vote";
+import { submitVote, LEADERBOARD_VOTE_THRESHOLD } from "@/app/actions/vote";
 import CollegeCard from "./CollegeCard";
 
 interface MatchupVotingProps {
   initialMatchup: Matchup;
   sessionId: string;
+  initialVoteCount: number;
 }
 
 type VoteState = "idle" | "voting" | "animating";
 
-export default function MatchupVoting({ initialMatchup, sessionId }: MatchupVotingProps) {
+export default function MatchupVoting({ initialMatchup, sessionId, initialVoteCount }: MatchupVotingProps) {
   const [matchup, setMatchup] = useState<Matchup>(initialMatchup);
   const [voteState, setVoteState] = useState<VoteState>("idle");
   const [selectedSide, setSelectedSide] = useState<"left" | "right" | null>(null);
   const [totalVotes, setTotalVotes] = useState(0);
+  const [cumulativeVotes, setCumulativeVotes] = useState(initialVoteCount);
   const [error, setError] = useState<string | null>(null);
   const submittingRef = useRef(false);
+
+  const leaderboardUnlocked = cumulativeVotes >= LEADERBOARD_VOTE_THRESHOLD;
+  const remaining = Math.max(0, LEADERBOARD_VOTE_THRESHOLD - cumulativeVotes);
 
   const handleVote = useCallback(
     async (side: "left" | "right") => {
@@ -45,6 +51,7 @@ export default function MatchupVoting({ initialMatchup, sessionId }: MatchupVoti
       }
 
       setTotalVotes((v) => v + 1);
+      if (result.voteCount !== undefined) setCumulativeVotes(result.voteCount);
 
       setTimeout(() => {
         setVoteState("animating");
@@ -73,20 +80,40 @@ export default function MatchupVoting({ initialMatchup, sessionId }: MatchupVoti
 
   return (
     <div className="w-full max-w-3xl mx-auto flex flex-col gap-6">
-      {/* Vote counter */}
-      <div className="flex items-center justify-center gap-2">
-        <span className="text-sm text-zinc-500 dark:text-zinc-400">
-          {totalVotes > 0 ? (
-            <>
-              <span className="font-semibold text-zinc-700 dark:text-zinc-300">
-                {totalVotes}
-              </span>{" "}
-              vote{totalVotes !== 1 ? "s" : ""} this session
-            </>
-          ) : (
-            "Which college is better?"
-          )}
-        </span>
+      {/* Leaderboard unlock progress / unlocked CTA */}
+      <div className="flex flex-col items-center gap-2">
+        {leaderboardUnlocked ? (
+          <Link
+            href="/leaderboard"
+            className="flex items-center gap-1.5 px-4 py-2 rounded-lg bg-zinc-900 dark:bg-zinc-100 hover:bg-zinc-700 dark:hover:bg-zinc-300 text-sm font-medium text-white dark:text-zinc-900 transition-colors"
+          >
+            <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+              <path strokeLinecap="round" strokeLinejoin="round" d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z" />
+            </svg>
+            View Rankings
+          </Link>
+        ) : (
+          <div className="w-full max-w-xs flex flex-col items-center gap-1.5">
+            <div className="flex items-center justify-between w-full text-xs text-zinc-500 dark:text-zinc-400">
+              <span className="flex items-center gap-1">
+                <svg className="w-3 h-3" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                  <path strokeLinecap="round" strokeLinejoin="round" d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z" />
+                </svg>
+                Rankings locked
+              </span>
+              <span>{cumulativeVotes} / {LEADERBOARD_VOTE_THRESHOLD} votes</span>
+            </div>
+            <div className="w-full h-1.5 rounded-full bg-zinc-100 dark:bg-zinc-800 overflow-hidden">
+              <div
+                className="h-full rounded-full bg-zinc-400 dark:bg-zinc-500 transition-all duration-300"
+                style={{ width: `${(cumulativeVotes / LEADERBOARD_VOTE_THRESHOLD) * 100}%` }}
+              />
+            </div>
+            <p className="text-xs text-zinc-400 dark:text-zinc-600">
+              {remaining} more vote{remaining !== 1 ? "s" : ""} to unlock
+            </p>
+          </div>
+        )}
       </div>
 
       {/* Cards */}

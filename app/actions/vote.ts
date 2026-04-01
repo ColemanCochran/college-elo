@@ -4,8 +4,10 @@ import { createClient, createAdminClient } from "@/lib/supabase-server";
 import { calculateNewRatings } from "@/lib/elo";
 import { generateMatchup } from "@/lib/matchmaking";
 import { VoteResult, Matchup } from "@/types";
-import { headers } from "next/headers";
+import { headers, cookies } from "next/headers";
 import crypto from "crypto";
+
+export const LEADERBOARD_VOTE_THRESHOLD = 8;
 
 const RATE_LIMIT_MS = 500; // minimum ms between votes per IP
 
@@ -94,6 +96,17 @@ export async function submitVote(
       session_id: sessionId,
     });
 
+    // Increment the persistent vote counter cookie
+    const cookieStore = await cookies();
+    const currentCount = parseInt(cookieStore.get("cr_votes")?.value ?? "0", 10);
+    const newVoteCount = currentCount + 1;
+    cookieStore.set("cr_votes", String(newVoteCount), {
+      maxAge: 60 * 60 * 24 * 365,
+      path: "/",
+      httpOnly: true,
+      sameSite: "lax",
+    });
+
     // Fetch all colleges for next matchup (fresh data)
     const { data: allColleges, error: allError } = await supabase
       .from("colleges")
@@ -111,7 +124,7 @@ export async function submitVote(
 
     const nextMatchup = generateMatchup(allColleges, previousMatchup);
 
-    return { success: true, nextMatchup };
+    return { success: true, nextMatchup, voteCount: newVoteCount };
   } catch (err) {
     console.error("Vote error:", err);
     return { success: false, nextMatchup: null, error: "Something went wrong." };

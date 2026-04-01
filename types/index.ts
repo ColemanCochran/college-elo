@@ -29,6 +29,7 @@ export interface VoteResult {
   success: boolean;
   nextMatchup: Matchup | null;
   error?: string;
+  voteCount?: number;
 }
 
 export interface LeaderboardEntry extends College {
