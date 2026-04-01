@@ -92,10 +92,11 @@ export default function MatchupVoting({ initialMatchup, sessionId, initialVoteCo
     const handler = (e: KeyboardEvent) => {
       if (e.key === "ArrowLeft") handleVote("left");
       if (e.key === "ArrowRight") handleVote("right");
+      if (e.key === "ArrowDown") { e.preventDefault(); handleSkip(); }
     };
     window.addEventListener("keydown", handler);
     return () => window.removeEventListener("keydown", handler);
-  }, [handleVote]);
+  }, [handleVote, handleSkip]);
 
   const isDisabled = voteState !== "idle";
 
@@ -163,34 +164,36 @@ export default function MatchupVoting({ initialMatchup, sessionId, initialVoteCo
         />
       </div>
 
-      {/* VS divider + skip */}
-      <div className="relative -mt-2 flex items-center justify-center">
-        <div className="absolute inset-x-0 top-1/2 -translate-y-1/2 flex items-center justify-center pointer-events-none">
-          <span className="px-3 py-1 rounded-full bg-zinc-100 dark:bg-zinc-800 text-xs font-bold text-zinc-400 dark:text-zinc-500 border border-zinc-200 dark:border-zinc-700 tracking-widest">
-            VS
-          </span>
-        </div>
-        <div className="flex justify-center mt-8">
-          <button
-            onClick={handleSkip}
-            disabled={isDisabled}
-            className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium text-zinc-400 dark:text-zinc-600 hover:text-zinc-600 dark:hover:text-zinc-400 hover:bg-zinc-100 dark:hover:bg-zinc-800 transition-colors disabled:opacity-40 disabled:cursor-not-allowed"
-          >
-            <svg className="w-3 h-3" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
-              <path strokeLinecap="round" strokeLinejoin="round" d="M13 5l7 7-7 7M5 5l7 7-7 7" />
-            </svg>
-            Skip — I don&apos;t know these schools
-          </button>
-        </div>
+      {/* VS divider */}
+      <div className="flex items-center justify-center -mt-2 pointer-events-none">
+        <span className="px-3 py-1 rounded-full bg-zinc-100 dark:bg-zinc-800 text-xs font-bold text-zinc-400 dark:text-zinc-500 border border-zinc-200 dark:border-zinc-700 tracking-widest">
+          VS
+        </span>
+      </div>
+
+      {/* Skip button */}
+      <div className="flex items-center justify-center -mt-1">
+        <button
+          onClick={handleSkip}
+          disabled={isDisabled}
+          className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium text-zinc-400 dark:text-zinc-600 hover:text-zinc-600 dark:hover:text-zinc-400 hover:bg-zinc-100 dark:hover:bg-zinc-800 transition-colors disabled:opacity-40 disabled:cursor-not-allowed"
+        >
+          <svg className="w-3 h-3" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+            <path strokeLinecap="round" strokeLinejoin="round" d="M13 5l7 7-7 7M5 5l7 7-7 7" />
+          </svg>
+          Skip — I don&apos;t know these schools
+        </button>
       </div>
 
       {/* Keyboard hint */}
-      <p className="text-center text-xs text-zinc-400 dark:text-zinc-600 hidden sm:block -mt-2">
+      <p className="text-center text-xs text-zinc-400 dark:text-zinc-600 hidden sm:block -mt-1">
         Use{" "}
         <kbd className="px-1.5 py-0.5 rounded bg-zinc-100 dark:bg-zinc-800 border border-zinc-200 dark:border-zinc-700 font-mono text-[10px]">←</kbd>
         {" "}/{" "}
         <kbd className="px-1.5 py-0.5 rounded bg-zinc-100 dark:bg-zinc-800 border border-zinc-200 dark:border-zinc-700 font-mono text-[10px]">→</kbd>
-        {" "}to vote with keyboard
+        {" "}to vote,{" "}
+        <kbd className="px-1.5 py-0.5 rounded bg-zinc-100 dark:bg-zinc-800 border border-zinc-200 dark:border-zinc-700 font-mono text-[10px]">↓</kbd>
+        {" "}to skip
       </p>
 
       {error && (
