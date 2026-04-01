@@ -51,6 +51,9 @@ export default async function LeaderboardPage({
         wins: r.wins,
         losses: r.losses,
         comparisons: r.matches_played,
+        // Skips are global (not per-topic), so only show them on Overall
+        // to avoid inflated skip% on topics that have no votes yet
+        skips: topicSlug === "overall" ? ((r.colleges as unknown as College).skips ?? 0) : 0,
       }))
     : [];
 

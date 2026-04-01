@@ -6,7 +6,7 @@ import Link from "next/link";
 import { Matchup } from "@/types";
 import { submitVote, submitSkip, getInitialMatchup } from "@/app/actions/vote";
 import { LEADERBOARD_VOTE_THRESHOLD } from "@/lib/constants";
-import { getTopicQuestion, PINNED_COUNT } from "@/lib/topics";
+import { getTopicQuestion } from "@/lib/topics";
 import CollegeCard from "./CollegeCard";
 import TopicSelector from "./TopicSelector";
 
@@ -151,23 +151,15 @@ export default function MatchupVoting({
 
   return (
     <div className="w-full max-w-3xl mx-auto flex flex-col gap-5">
-      {/* Topic selector */}
-      <div className="flex justify-center">
+      {/* Topic selector + heading */}
+      <div className="text-center flex flex-col gap-2">
         <TopicSelector
           topics={topics}
           selectedSlug={topicSlug}
           onSelect={handleTopicChange}
-          pinnedCount={PINNED_COUNT}
           disabled={isDisabled}
         />
-      </div>
-
-      {/* Heading */}
-      <div className="text-center">
-        <h1 className="text-xl sm:text-2xl font-bold text-zinc-900 dark:text-zinc-100 tracking-tight">
-          {heading}
-        </h1>
-        <p className="mt-1.5 text-sm text-zinc-500 dark:text-zinc-400">
+        <p className="text-sm text-zinc-500 dark:text-zinc-400">
           Click a card to vote · ELO updates instantly after each matchup
         </p>
       </div>
