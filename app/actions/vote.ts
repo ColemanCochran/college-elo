@@ -3,16 +3,23 @@
 import { createClient, createAdminClient } from "@/lib/supabase-server";
 import { calculateNewRatings } from "@/lib/elo";
 import { generateMatchup } from "@/lib/matchmaking";
+import { signMatchup, verifyMatchupToken } from "@/lib/matchup-token";
 import { VoteResult, Matchup, College } from "@/types";
 import { headers, cookies } from "next/headers";
 import crypto from "crypto";
 import { LEADERBOARD_VOTE_THRESHOLD } from "@/lib/constants";
 import { DEFAULT_TOPIC_SLUG } from "@/lib/topics";
 
-const RATE_LIMIT_MS = 500;
+const RATE_LIMIT_MS = 1500;
+const DAILY_VOTE_CAP = 500;
 
 function hashIp(ip: string): string {
   return crypto.createHash("sha256").update(ip + "cr_salt_2024").digest("hex").slice(0, 32);
+}
+
+function withToken(matchup: Matchup | null): Matchup | null {
+  if (!matchup) return null;
+  return { ...matchup, token: signMatchup(matchup.left.id, matchup.right.id) };
 }
 
 async function getTopicId(slug: string): Promise<string | null> {
@@ -51,9 +58,17 @@ export async function submitVote(
   loserId: string,
   sessionId: string,
   previousMatchupIds: [string, string],
-  topicSlug: string = DEFAULT_TOPIC_SLUG
+  topicSlug: string = DEFAULT_TOPIC_SLUG,
+  matchupToken?: string
 ): Promise<VoteResult> {
   try {
+    // Verify matchup token — reject votes not backed by a server-issued token
+    if (matchupToken) {
+      if (!verifyMatchupToken(matchupToken, winnerId, loserId)) {
+        return { success: false, nextMatchup: null, error: "Invalid or expired matchup. Please refresh." };
+      }
+    }
+
     const headersList = await headers();
     const ip =
       headersList.get("x-forwarded-for")?.split(",")[0]?.trim() ||
@@ -76,6 +91,18 @@ export async function submitVote(
 
     if (recentVote) {
       return { success: false, nextMatchup: null, error: "Too fast! Slow down." };
+    }
+
+    // Daily cap: max DAILY_VOTE_CAP votes per IP per 24 hours
+    const dayAgo = new Date(Date.now() - 24 * 60 * 60 * 1000).toISOString();
+    const { count: dailyCount } = await supabase
+      .from("votes")
+      .select("*", { count: "exact", head: true })
+      .eq("ip_hash", ipHash)
+      .gte("created_at", dayAgo);
+
+    if ((dailyCount ?? 0) >= DAILY_VOTE_CAP) {
+      return { success: false, nextMatchup: null, error: "Daily vote limit reached. Come back tomorrow!" };
     }
 
     const topicId = await getTopicId(topicSlug);
@@ -136,7 +163,7 @@ export async function submitVote(
       p_winner_id: winnerId,
     });
 
-    // Increment persistent vote cookie
+    // Increment persistent vote cookies (global + per-topic)
     const cookieStore = await cookies();
     const currentCount = parseInt(cookieStore.get("cr_votes")?.value ?? "0", 10);
     const newVoteCount = currentCount + 1;
@@ -146,16 +173,36 @@ export async function submitVote(
       httpOnly: true,
       sameSite: "lax",
     });
+    const topicCookieKey = `cr_votes_${topicSlug}`;
+    const currentTopicCount = parseInt(cookieStore.get(topicCookieKey)?.value ?? "0", 10);
+    const newTopicVoteCount = currentTopicCount + 1;
+    cookieStore.set(topicCookieKey, String(newTopicVoteCount), {
+      maxAge: 60 * 60 * 24 * 365,
+      path: "/",
+      httpOnly: true,
+      sameSite: "lax",
+    });
 
-    // Generate next matchup for this topic
+    // Generate and sign next matchup for this topic
     const allColleges = await fetchCollegesForTopic(topicId);
     const prevLeft = allColleges.find(c => c.id === previousMatchupIds[0]);
     const prevRight = allColleges.find(c => c.id === previousMatchupIds[1]);
     const previousMatchup =
       prevLeft && prevRight ? { left: prevLeft, right: prevRight } : null;
-    const nextMatchup = generateMatchup(allColleges, previousMatchup ?? undefined);
+    const nextMatchup = withToken(generateMatchup(allColleges, previousMatchup ?? undefined));
 
-    return { success: true, nextMatchup, voteCount: newVoteCount };
+    // Advance the pending matchup cookie to the next matchup so that
+    // recordMatchupImpression doesn't misread the vote transition as a refresh-skip
+    if (nextMatchup) {
+      cookieStore.set("cr_pending_matchup", `${nextMatchup.left.id}|${nextMatchup.right.id}|${topicSlug}`, {
+        maxAge: 60 * 60,
+        path: "/",
+        httpOnly: true,
+        sameSite: "lax",
+      });
+    }
+
+    return { success: true, nextMatchup, voteCount: newTopicVoteCount };
   } catch (err) {
     console.error("Vote error:", err);
     return { success: false, nextMatchup: null, error: "Something went wrong." };
@@ -201,12 +248,92 @@ export async function submitSkip(
     const prevRight = allColleges.find(c => c.id === previousMatchupIds[1]);
     const previousMatchup =
       prevLeft && prevRight ? { left: prevLeft, right: prevRight } : null;
+    const nextMatchup = withToken(generateMatchup(allColleges, previousMatchup ?? undefined));
 
-    return { nextMatchup: generateMatchup(allColleges, previousMatchup ?? undefined) };
+    // Advance the pending matchup cookie so recordMatchupImpression doesn't
+    // misread the skip transition as another refresh-skip
+    if (nextMatchup) {
+      const cookieStore = await cookies();
+      cookieStore.set("cr_pending_matchup", `${nextMatchup.left.id}|${nextMatchup.right.id}|${topicSlug}`, {
+        maxAge: 60 * 60,
+        path: "/",
+        httpOnly: true,
+        sameSite: "lax",
+      });
+    }
+
+    return { nextMatchup };
   } catch (err) {
     console.error("Skip error:", err);
     return { nextMatchup: null };
   }
+}
+
+/**
+ * Called by the client whenever a new matchup becomes visible.
+ * If the previously stored pending matchup (same topic) was never voted on
+ * or skipped, it means the user refreshed to avoid it — record it as a skip.
+ */
+export async function recordMatchupImpression(
+  leftId: string,
+  rightId: string,
+  topicSlug: string
+): Promise<void> {
+  try {
+    const cookieStore = await cookies();
+    const pending = cookieStore.get("cr_pending_matchup")?.value;
+
+    if (pending) {
+      const [pendingLeft, pendingRight, pendingTopic] = pending.split("|");
+      const sameTopicDifferentPair =
+        pendingTopic === topicSlug &&
+        (pendingLeft !== leftId || pendingRight !== rightId);
+
+      if (sameTopicDifferentPair && pendingLeft && pendingRight) {
+        const admin = createAdminClient();
+
+        // Increment skip count on both abandoned colleges
+        const { data: abandonedColleges } = await admin
+          .from("colleges")
+          .select("id, skips")
+          .in("id", [pendingLeft, pendingRight]);
+
+        if (abandonedColleges && abandonedColleges.length === 2) {
+          for (const college of abandonedColleges) {
+            await admin
+              .from("colleges")
+              .update({ skips: college.skips + 1 })
+              .eq("id", college.id);
+          }
+        }
+
+        // Record in matchup_stats
+        const [canonA, canonB] =
+          pendingLeft < pendingRight
+            ? [pendingLeft, pendingRight]
+            : [pendingRight, pendingLeft];
+        await admin.rpc("record_matchup_skip", {
+          p_college_a_id: canonA,
+          p_college_b_id: canonB,
+        });
+      }
+    }
+
+    // Update pending cookie to current matchup
+    cookieStore.set("cr_pending_matchup", `${leftId}|${rightId}|${topicSlug}`, {
+      maxAge: 60 * 60, // 1 hour — stale impressions should not trigger skips
+      path: "/",
+      httpOnly: true,
+      sameSite: "lax",
+    });
+  } catch (err) {
+    console.error("Impression error:", err);
+  }
+}
+
+export async function getTopicVoteCount(topicSlug: string): Promise<number> {
+  const cookieStore = await cookies();
+  return parseInt(cookieStore.get(`cr_votes_${topicSlug}`)?.value ?? "0", 10);
 }
 
 export async function getInitialMatchup(
@@ -218,5 +345,5 @@ export async function getInitialMatchup(
   const colleges = await fetchCollegesForTopic(topicId);
   if (colleges.length < 2) return null;
 
-  return generateMatchup(colleges);
+  return withToken(generateMatchup(colleges));
 }

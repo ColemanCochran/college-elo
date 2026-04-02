@@ -25,7 +25,7 @@ export default async function Home({
     rawTopic && isValidTopicSlug(rawTopic) ? rawTopic : DEFAULT_TOPIC_SLUG;
 
   const cookieStore = await cookies();
-  const voteCount = parseInt(cookieStore.get("cr_votes")?.value ?? "0", 10);
+  const voteCount = parseInt(cookieStore.get(`cr_votes_${topicSlug}`)?.value ?? "0", 10);
   const leaderboardUnlocked = voteCount >= LEADERBOARD_VOTE_THRESHOLD;
 
   const [matchup, sessionId] = await Promise.all([

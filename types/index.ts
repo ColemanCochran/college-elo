@@ -24,6 +24,7 @@ export interface Vote {
 export interface Matchup {
   left: College;
   right: College;
+  token?: string;
 }
 
 export interface VoteResult {

@@ -4,7 +4,7 @@ import { useState, useEffect, useCallback, useRef } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
 import { Matchup } from "@/types";
-import { submitVote, submitSkip, getInitialMatchup } from "@/app/actions/vote";
+import { submitVote, submitSkip, getInitialMatchup, getTopicVoteCount, recordMatchupImpression } from "@/app/actions/vote";
 import { LEADERBOARD_VOTE_THRESHOLD } from "@/lib/constants";
 import { getTopicQuestion } from "@/lib/topics";
 import CollegeCard from "./CollegeCard";
@@ -42,6 +42,11 @@ export default function MatchupVoting({
   const currentTopic = topics.find(t => t.slug === topicSlug) ?? topics[0];
   const heading = getTopicQuestion(topicSlug, currentTopic?.name ?? topicSlug);
 
+  // Track matchup impressions — detects refresh-skips (user saw a matchup but refreshed instead of voting)
+  useEffect(() => {
+    recordMatchupImpression(matchup.left.id, matchup.right.id, topicSlug);
+  }, [matchup.left.id, matchup.right.id, topicSlug]);
+
   // Restore topic from localStorage on mount (only if URL has no explicit topic param)
   useEffect(() => {
     if (!window.location.search.includes("topic=")) {
@@ -62,9 +67,13 @@ export default function MatchupVoting({
       localStorage.setItem("cc_topic", slug);
       router.replace(`/?topic=${slug}`, { scroll: false });
 
-      const newMatchup = await getInitialMatchup(slug);
+      const [newMatchup, topicVoteCount] = await Promise.all([
+        getInitialMatchup(slug),
+        getTopicVoteCount(slug),
+      ]);
       setTopicSlug(slug);
       if (newMatchup) setMatchup(newMatchup);
+      setCumulativeVotes(topicVoteCount);
       setVoteState("idle");
       submittingRef.current = false;
     },
@@ -109,7 +118,8 @@ export default function MatchupVoting({
         loser.id,
         sessionId,
         [matchup.left.id, matchup.right.id],
-        topicSlug
+        topicSlug,
+        matchup.token
       );
 
       if (!result.success) {
