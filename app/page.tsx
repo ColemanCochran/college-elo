@@ -134,9 +134,16 @@ export default async function DiscoverPage({
       <footer className="border-t border-zinc-100 dark:border-zinc-900 py-4 px-4">
         <div className="max-w-3xl mx-auto text-xs text-zinc-400 dark:text-zinc-600 flex items-center justify-between">
           <span>Duelist</span>
-          <Link href="/about" className="hover:text-zinc-600 dark:hover:text-zinc-400 transition-colors">
-            About
-          </Link>
+          <div className="flex items-center gap-4">
+            <Link href="/about" className="hover:text-zinc-600 dark:hover:text-zinc-400 transition-colors">
+              About
+            </Link>
+            {!user && (
+              <Link href="/auth/sign-in" className="hover:text-zinc-600 dark:hover:text-zinc-400 transition-colors">
+                Sign in
+              </Link>
+            )}
+          </div>
         </div>
       </footer>
     </div>
