@@ -1,10 +1,11 @@
 import { createServerClient } from "@supabase/ssr";
 import { createClient as createSupabaseClient } from "@supabase/supabase-js";
 import { cookies } from "next/headers";
+import type { Database } from "@/types/database";
 
 /** Admin client — bypasses RLS. Only use in server actions/route handlers, never expose to client. */
 export function createAdminClient() {
-  return createSupabaseClient(
+  return createSupabaseClient<Database>(
     process.env.SUPABASE_URL!,
     process.env.SUPABASE_SERVICE_ROLE_KEY!,
     { auth: { persistSession: false } }
@@ -14,7 +15,7 @@ export function createAdminClient() {
 export async function createClient() {
   const cookieStore = await cookies();
 
-  return createServerClient(
+  return createServerClient<Database>(
     process.env.SUPABASE_URL!,
     process.env.SUPABASE_ANON_KEY!,
     {
@@ -28,10 +29,23 @@ export async function createClient() {
               cookieStore.set(name, value, options)
             );
           } catch {
-            // Server Component — cookies can't be set
+            // Server Component — cookies can't be set here (read-only render pass)
           }
         },
       },
     }
   );
+}
+
+/**
+ * Returns the currently authenticated user, or null if no session exists.
+ * Uses getUser() (validates JWT server-side) rather than getSession() which
+ * only reads from the cookie without re-validating.
+ */
+export async function getUser() {
+  const supabase = await createClient();
+  const {
+    data: { user },
+  } = await supabase.auth.getUser();
+  return user;
 }

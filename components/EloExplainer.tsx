@@ -6,8 +6,8 @@ export default function EloExplainer() {
           How the Rankings Work
         </h2>
         <p className="text-sm text-zinc-500 dark:text-zinc-400 mb-8">
-          College Clash uses the ELO rating system — the same algorithm used in
-          competitive chess — to determine college rankings through pairwise
+          Duelist uses the ELO rating system — the same algorithm used in
+          competitive chess — to determine rankings through pairwise
           community voting.
         </p>
 
@@ -54,8 +54,8 @@ export default function EloExplainer() {
               </span>
             </div>
             <p className="text-xs text-zinc-500 dark:text-zinc-400 mt-2">
-              This gives the probability that college A beats college B. A 400-point
-              difference means the higher-rated school wins ~91% of the time.
+              This gives the probability that item A beats item B. A 400-point
+              difference means the higher-rated item wins ~91% of the time.
             </p>
           </div>
 
@@ -74,8 +74,8 @@ export default function EloExplainer() {
               </div>
             </div>
             <p className="text-xs text-zinc-500 dark:text-zinc-400 mt-2">
-              Upsets — when a lower-rated college wins — move the ratings more than
-              expected outcomes, allowing underrated schools to rise quickly.
+              Upsets — when a lower-rated item wins — move the ratings more than
+              expected outcomes, allowing underrated items to rise quickly.
             </p>
           </div>
         </div>

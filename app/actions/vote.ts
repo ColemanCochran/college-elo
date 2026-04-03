@@ -7,7 +7,6 @@ import { signMatchup, verifyMatchupToken } from "@/lib/matchup-token";
 import { VoteResult, Matchup, College } from "@/types";
 import { headers, cookies } from "next/headers";
 import crypto from "crypto";
-import { LEADERBOARD_VOTE_THRESHOLD } from "@/lib/constants";
 import { DEFAULT_TOPIC_SLUG } from "@/lib/topics";
 
 const RATE_LIMIT_MS = 1500;
@@ -22,15 +21,18 @@ function withToken(matchup: Matchup | null): Matchup | null {
   return { ...matchup, token: signMatchup(matchup.left.id, matchup.right.id) };
 }
 
-async function getTopicId(slug: string): Promise<string | null> {
+/** Returns topic id and system flag, or null if not found. */
+async function getTopicInfo(slug: string): Promise<{ id: string; is_system: boolean } | null> {
   const supabase = await createClient();
   const { data } = await supabase
     .from("topics")
-    .select("id")
+    .select("id, is_system")
     .eq("slug", slug)
     .single();
-  return data?.id ?? null;
+  return data ?? null;
 }
+
+// ── System forum path: colleges + elo_ratings ─────────────────────────────────
 
 async function fetchCollegesForTopic(topicId: string): Promise<College[]> {
   const supabase = await createClient();
@@ -43,15 +45,42 @@ async function fetchCollegesForTopic(topicId: string): Promise<College[]> {
   if (!data) return [];
   return data.map(r => {
     const college = r.colleges as unknown as College;
-    return {
-      ...college,
-      elo_rating: r.rating,
-      wins: r.wins,
-      losses: r.losses,
-      comparisons: r.matches_played,
-    };
+    return { ...college, elo_rating: r.rating, wins: r.wins, losses: r.losses, comparisons: r.matches_played };
   });
 }
+
+// ── User forum path: topic_items ──────────────────────────────────────────────
+
+async function fetchItemsForForum(topicId: string): Promise<College[]> {
+  const supabase = await createClient();
+  const { data } = await supabase
+    .from("topic_items")
+    .select("id, name, slug, image_url, elo_rating, comparisons, wins, losses, skips, created_at, updated_at")
+    .eq("topic_id", topicId)
+    .order("comparisons", { ascending: true });
+
+  if (!data) return [];
+  // Map topic_items shape onto College so the shared matchmaking + voting UI works unchanged
+  return data.map(item => ({
+    id: item.id,
+    name: item.name,
+    slug: item.slug,
+    logo_url: item.image_url ?? null,
+    elo_rating: item.elo_rating,
+    comparisons: item.comparisons,
+    wins: item.wins,
+    losses: item.losses,
+    skips: item.skips ?? 0,
+    created_at: item.created_at,
+    updated_at: item.updated_at,
+  }));
+}
+
+async function fetchItemsForTopic(topicId: string, isSystem: boolean): Promise<College[]> {
+  return isSystem ? fetchCollegesForTopic(topicId) : fetchItemsForForum(topicId);
+}
+
+// ── Vote submission ───────────────────────────────────────────────────────────
 
 export async function submitVote(
   winnerId: string,
@@ -62,7 +91,6 @@ export async function submitVote(
   matchupToken?: string
 ): Promise<VoteResult> {
   try {
-    // Verify matchup token — reject votes not backed by a server-issued token
     if (matchupToken) {
       if (!verifyMatchupToken(matchupToken, winnerId, loserId)) {
         return { success: false, nextMatchup: null, error: "Invalid or expired matchup. Please refresh." };
@@ -79,127 +107,95 @@ export async function submitVote(
     const supabase = await createClient();
     const admin = createAdminClient();
 
-    // Rate limit: check for a recent vote from this IP
+    // Rate limit — check both vote tables so user forum votes are covered
     const cutoff = new Date(Date.now() - RATE_LIMIT_MS).toISOString();
-    const { data: recentVote } = await supabase
-      .from("votes")
-      .select("id")
-      .eq("ip_hash", ipHash)
-      .gte("created_at", cutoff)
-      .limit(1)
-      .maybeSingle();
+    const [{ data: recentVote }, { data: recentTopicVote }] = await Promise.all([
+      supabase.from("votes").select("id").eq("ip_hash", ipHash).gte("created_at", cutoff).limit(1).maybeSingle(),
+      supabase.from("topic_votes").select("id").eq("ip_hash", ipHash).gte("created_at", cutoff).limit(1).maybeSingle(),
+    ]);
+    if (recentVote || recentTopicVote) return { success: false, nextMatchup: null, error: "Too fast! Slow down." };
 
-    if (recentVote) {
-      return { success: false, nextMatchup: null, error: "Too fast! Slow down." };
-    }
-
-    // Daily cap: max DAILY_VOTE_CAP votes per IP per 24 hours
+    // Daily cap — sum across both vote tables
     const dayAgo = new Date(Date.now() - 24 * 60 * 60 * 1000).toISOString();
-    const { count: dailyCount } = await supabase
-      .from("votes")
-      .select("*", { count: "exact", head: true })
-      .eq("ip_hash", ipHash)
-      .gte("created_at", dayAgo);
-
-    if ((dailyCount ?? 0) >= DAILY_VOTE_CAP) {
+    const [{ count: collegeCount }, { count: topicCount }] = await Promise.all([
+      supabase.from("votes").select("*", { count: "exact", head: true }).eq("ip_hash", ipHash).gte("created_at", dayAgo),
+      supabase.from("topic_votes").select("*", { count: "exact", head: true }).eq("ip_hash", ipHash).gte("created_at", dayAgo),
+    ]);
+    if ((collegeCount ?? 0) + (topicCount ?? 0) >= DAILY_VOTE_CAP) {
       return { success: false, nextMatchup: null, error: "Daily vote limit reached. Come back tomorrow!" };
     }
 
-    const topicId = await getTopicId(topicSlug);
-    if (!topicId) return { success: false, nextMatchup: null, error: "Topic not found." };
+    const topic = await getTopicInfo(topicSlug);
+    if (!topic) return { success: false, nextMatchup: null, error: "Forum not found." };
 
-    // Fetch elo_ratings for both colleges in this topic
-    const { data: ratings } = await supabase
-      .from("elo_ratings")
-      .select("*")
-      .in("college_id", [winnerId, loserId])
-      .eq("topic_id", topicId);
+    if (topic.is_system) {
+      // ── System forum: update elo_ratings ────────────────────────────────────
+      const { data: ratings } = await supabase
+        .from("elo_ratings")
+        .select("*")
+        .in("college_id", [winnerId, loserId])
+        .eq("topic_id", topic.id);
 
-    if (!ratings || ratings.length !== 2) {
-      return { success: false, nextMatchup: null, error: "Ratings not found." };
+      if (!ratings || ratings.length !== 2) {
+        return { success: false, nextMatchup: null, error: "Ratings not found." };
+      }
+
+      const winnerRating = ratings.find(r => r.college_id === winnerId)!;
+      const loserRating = ratings.find(r => r.college_id === loserId)!;
+      const { winnerNew, loserNew } = calculateNewRatings(winnerRating.rating, loserRating.rating);
+
+      await admin.from("elo_ratings").update({ rating: winnerNew, wins: winnerRating.wins + 1, matches_played: winnerRating.matches_played + 1 }).eq("college_id", winnerId).eq("topic_id", topic.id);
+      await admin.from("elo_ratings").update({ rating: loserNew, losses: loserRating.losses + 1, matches_played: loserRating.matches_played + 1 }).eq("college_id", loserId).eq("topic_id", topic.id);
+      await admin.from("votes").insert({ winner_college_id: winnerId, loser_college_id: loserId, ip_hash: ipHash, session_id: sessionId, topic_id: topic.id });
+
+      const [canonA, canonB] = winnerId < loserId ? [winnerId, loserId] : [loserId, winnerId];
+      await admin.rpc("record_matchup_vote", { p_college_a_id: canonA, p_college_b_id: canonB, p_winner_id: winnerId });
+
+    } else {
+      // ── User forum: update topic_items ───────────────────────────────────────
+      const { data: items } = await supabase
+        .from("topic_items")
+        .select("id, elo_rating, wins, losses, comparisons")
+        .in("id", [winnerId, loserId])
+        .eq("topic_id", topic.id);
+
+      if (!items || items.length !== 2) {
+        return { success: false, nextMatchup: null, error: "Items not found." };
+      }
+
+      const winnerItem = items.find(i => i.id === winnerId)!;
+      const loserItem = items.find(i => i.id === loserId)!;
+      const { winnerNew, loserNew } = calculateNewRatings(winnerItem.elo_rating, loserItem.elo_rating);
+
+      await admin.from("topic_items").update({ elo_rating: winnerNew, wins: winnerItem.wins + 1, comparisons: winnerItem.comparisons + 1 }).eq("id", winnerId);
+      await admin.from("topic_items").update({ elo_rating: loserNew, losses: loserItem.losses + 1, comparisons: loserItem.comparisons + 1 }).eq("id", loserId);
+      await admin.from("topic_votes").insert({ topic_id: topic.id, winner_item_id: winnerId, loser_item_id: loserId, ip_hash: ipHash, session_id: sessionId });
+      await admin.rpc("record_topic_item_vote", {
+        p_topic_id: topic.id,
+        p_item_a_id: winnerId < loserId ? winnerId : loserId,
+        p_item_b_id: winnerId < loserId ? loserId : winnerId,
+        p_winner_id: winnerId,
+      });
     }
 
-    const winnerRating = ratings.find(r => r.college_id === winnerId)!;
-    const loserRating = ratings.find(r => r.college_id === loserId)!;
-
-    const { winnerNew, loserNew } = calculateNewRatings(
-      winnerRating.rating,
-      loserRating.rating
-    );
-
-    await admin
-      .from("elo_ratings")
-      .update({
-        rating: winnerNew,
-        wins: winnerRating.wins + 1,
-        matches_played: winnerRating.matches_played + 1,
-      })
-      .eq("college_id", winnerId)
-      .eq("topic_id", topicId);
-
-    await admin
-      .from("elo_ratings")
-      .update({
-        rating: loserNew,
-        losses: loserRating.losses + 1,
-        matches_played: loserRating.matches_played + 1,
-      })
-      .eq("college_id", loserId)
-      .eq("topic_id", topicId);
-
-    await admin.from("votes").insert({
-      winner_college_id: winnerId,
-      loser_college_id: loserId,
-      ip_hash: ipHash,
-      session_id: sessionId,
-      topic_id: topicId,
-    });
-
-    // Record head-to-head (topic-agnostic aggregate)
-    const [canonA, canonB] = winnerId < loserId ? [winnerId, loserId] : [loserId, winnerId];
-    await admin.rpc("record_matchup_vote", {
-      p_college_a_id: canonA,
-      p_college_b_id: canonB,
-      p_winner_id: winnerId,
-    });
-
-    // Increment persistent vote cookies (global + per-topic)
+    // Increment vote cookies
     const cookieStore = await cookies();
     const currentCount = parseInt(cookieStore.get("cr_votes")?.value ?? "0", 10);
-    const newVoteCount = currentCount + 1;
-    cookieStore.set("cr_votes", String(newVoteCount), {
-      maxAge: 60 * 60 * 24 * 365,
-      path: "/",
-      httpOnly: true,
-      sameSite: "lax",
-    });
+    cookieStore.set("cr_votes", String(currentCount + 1), { maxAge: 60 * 60 * 24 * 365, path: "/", httpOnly: true, sameSite: "lax" });
     const topicCookieKey = `cr_votes_${topicSlug}`;
     const currentTopicCount = parseInt(cookieStore.get(topicCookieKey)?.value ?? "0", 10);
     const newTopicVoteCount = currentTopicCount + 1;
-    cookieStore.set(topicCookieKey, String(newTopicVoteCount), {
-      maxAge: 60 * 60 * 24 * 365,
-      path: "/",
-      httpOnly: true,
-      sameSite: "lax",
-    });
+    cookieStore.set(topicCookieKey, String(newTopicVoteCount), { maxAge: 60 * 60 * 24 * 365, path: "/", httpOnly: true, sameSite: "lax" });
 
-    // Generate and sign next matchup for this topic
-    const allColleges = await fetchCollegesForTopic(topicId);
-    const prevLeft = allColleges.find(c => c.id === previousMatchupIds[0]);
-    const prevRight = allColleges.find(c => c.id === previousMatchupIds[1]);
-    const previousMatchup =
-      prevLeft && prevRight ? { left: prevLeft, right: prevRight } : null;
-    const nextMatchup = withToken(generateMatchup(allColleges, previousMatchup ?? undefined));
+    // Next matchup
+    const allItems = await fetchItemsForTopic(topic.id, topic.is_system);
+    const prevLeft = allItems.find(c => c.id === previousMatchupIds[0]);
+    const prevRight = allItems.find(c => c.id === previousMatchupIds[1]);
+    const previousMatchup = prevLeft && prevRight ? { left: prevLeft, right: prevRight } : null;
+    const nextMatchup = withToken(generateMatchup(allItems, previousMatchup ?? undefined));
 
-    // Advance the pending matchup cookie to the next matchup so that
-    // recordMatchupImpression doesn't misread the vote transition as a refresh-skip
     if (nextMatchup) {
-      cookieStore.set("cr_pending_matchup", `${nextMatchup.left.id}|${nextMatchup.right.id}|${topicSlug}`, {
-        maxAge: 60 * 60,
-        path: "/",
-        httpOnly: true,
-        sameSite: "lax",
-      });
+      cookieStore.set("cr_pending_matchup", `${nextMatchup.left.id}|${nextMatchup.right.id}|${topicSlug}`, { maxAge: 60 * 60, path: "/", httpOnly: true, sameSite: "lax" });
     }
 
     return { success: true, nextMatchup, voteCount: newTopicVoteCount };
@@ -209,6 +205,8 @@ export async function submitVote(
   }
 }
 
+// ── Skip submission ───────────────────────────────────────────────────────────
+
 export async function submitSkip(
   leftId: string,
   rightId: string,
@@ -216,50 +214,38 @@ export async function submitSkip(
   topicSlug: string = DEFAULT_TOPIC_SLUG
 ): Promise<{ nextMatchup: Matchup | null }> {
   try {
-    const supabase = await createClient();
     const admin = createAdminClient();
+    const topic = await getTopicInfo(topicSlug);
+    if (!topic) return { nextMatchup: null };
 
-    const topicId = await getTopicId(topicSlug);
-    if (!topicId) return { nextMatchup: null };
-
-    // Skips are topic-agnostic — tracked on colleges table
-    const { data: colleges } = await supabase
-      .from("colleges")
-      .select("id, skips")
-      .in("id", [leftId, rightId]);
-
-    if (colleges && colleges.length === 2) {
-      for (const college of colleges) {
-        await admin
-          .from("colleges")
-          .update({ skips: college.skips + 1 })
-          .eq("id", college.id);
+    if (topic.is_system) {
+      const { data: colleges } = await admin.from("colleges").select("id, skips").in("id", [leftId, rightId]);
+      if (colleges && colleges.length === 2) {
+        for (const college of colleges) {
+          await admin.from("colleges").update({ skips: college.skips + 1 }).eq("id", college.id);
+        }
       }
+      const [canonA, canonB] = leftId < rightId ? [leftId, rightId] : [rightId, leftId];
+      await admin.rpc("record_matchup_skip", { p_college_a_id: canonA, p_college_b_id: canonB });
+    } else {
+      const { data: items } = await admin.from("topic_items").select("id, skips").in("id", [leftId, rightId]);
+      if (items && items.length === 2) {
+        for (const item of items) {
+          await admin.from("topic_items").update({ skips: (item.skips ?? 0) + 1 }).eq("id", item.id);
+        }
+      }
+      await admin.rpc("record_topic_item_skip", { p_topic_id: topic.id, p_item_a_id: leftId < rightId ? leftId : rightId, p_item_b_id: leftId < rightId ? rightId : leftId });
     }
 
-    const [canonA, canonB] = leftId < rightId ? [leftId, rightId] : [rightId, leftId];
-    await admin.rpc("record_matchup_skip", {
-      p_college_a_id: canonA,
-      p_college_b_id: canonB,
-    });
+    const allItems = await fetchItemsForTopic(topic.id, topic.is_system);
+    const prevLeft = allItems.find(c => c.id === previousMatchupIds[0]);
+    const prevRight = allItems.find(c => c.id === previousMatchupIds[1]);
+    const previousMatchup = prevLeft && prevRight ? { left: prevLeft, right: prevRight } : null;
+    const nextMatchup = withToken(generateMatchup(allItems, previousMatchup ?? undefined));
 
-    const allColleges = await fetchCollegesForTopic(topicId);
-    const prevLeft = allColleges.find(c => c.id === previousMatchupIds[0]);
-    const prevRight = allColleges.find(c => c.id === previousMatchupIds[1]);
-    const previousMatchup =
-      prevLeft && prevRight ? { left: prevLeft, right: prevRight } : null;
-    const nextMatchup = withToken(generateMatchup(allColleges, previousMatchup ?? undefined));
-
-    // Advance the pending matchup cookie so recordMatchupImpression doesn't
-    // misread the skip transition as another refresh-skip
     if (nextMatchup) {
       const cookieStore = await cookies();
-      cookieStore.set("cr_pending_matchup", `${nextMatchup.left.id}|${nextMatchup.right.id}|${topicSlug}`, {
-        maxAge: 60 * 60,
-        path: "/",
-        httpOnly: true,
-        sameSite: "lax",
-      });
+      cookieStore.set("cr_pending_matchup", `${nextMatchup.left.id}|${nextMatchup.right.id}|${topicSlug}`, { maxAge: 60 * 60, path: "/", httpOnly: true, sameSite: "lax" });
     }
 
     return { nextMatchup };
@@ -269,63 +255,43 @@ export async function submitSkip(
   }
 }
 
-/**
- * Called by the client whenever a new matchup becomes visible.
- * If the previously stored pending matchup (same topic) was never voted on
- * or skipped, it means the user refreshed to avoid it — record it as a skip.
- */
-export async function recordMatchupImpression(
-  leftId: string,
-  rightId: string,
-  topicSlug: string
-): Promise<void> {
+// ── Impression tracking ───────────────────────────────────────────────────────
+
+export async function recordMatchupImpression(leftId: string, rightId: string, topicSlug: string): Promise<void> {
   try {
     const cookieStore = await cookies();
     const pending = cookieStore.get("cr_pending_matchup")?.value;
 
     if (pending) {
       const [pendingLeft, pendingRight, pendingTopic] = pending.split("|");
-      const sameTopicDifferentPair =
-        pendingTopic === topicSlug &&
-        (pendingLeft !== leftId || pendingRight !== rightId);
+      const sameTopicDifferentPair = pendingTopic === topicSlug && (pendingLeft !== leftId || pendingRight !== rightId);
 
       if (sameTopicDifferentPair && pendingLeft && pendingRight) {
-        const admin = createAdminClient();
-
-        // Increment skip count on both abandoned colleges
-        const { data: abandonedColleges } = await admin
-          .from("colleges")
-          .select("id, skips")
-          .in("id", [pendingLeft, pendingRight]);
-
-        if (abandonedColleges && abandonedColleges.length === 2) {
-          for (const college of abandonedColleges) {
-            await admin
-              .from("colleges")
-              .update({ skips: college.skips + 1 })
-              .eq("id", college.id);
+        const topic = await getTopicInfo(topicSlug);
+        if (topic) {
+          const admin = createAdminClient();
+          if (topic.is_system) {
+            const { data: abandonedColleges } = await admin.from("colleges").select("id, skips").in("id", [pendingLeft, pendingRight]);
+            if (abandonedColleges && abandonedColleges.length === 2) {
+              for (const college of abandonedColleges) {
+                await admin.from("colleges").update({ skips: college.skips + 1 }).eq("id", college.id);
+              }
+            }
+            const [canonA, canonB] = pendingLeft < pendingRight ? [pendingLeft, pendingRight] : [pendingRight, pendingLeft];
+            await admin.rpc("record_matchup_skip", { p_college_a_id: canonA, p_college_b_id: canonB });
+          } else {
+            const { data: items } = await admin.from("topic_items").select("id, skips").in("id", [pendingLeft, pendingRight]);
+            if (items && items.length === 2) {
+              for (const item of items) {
+                await admin.from("topic_items").update({ skips: (item.skips ?? 0) + 1 }).eq("id", item.id);
+              }
+            }
           }
         }
-
-        // Record in matchup_stats
-        const [canonA, canonB] =
-          pendingLeft < pendingRight
-            ? [pendingLeft, pendingRight]
-            : [pendingRight, pendingLeft];
-        await admin.rpc("record_matchup_skip", {
-          p_college_a_id: canonA,
-          p_college_b_id: canonB,
-        });
       }
     }
 
-    // Update pending cookie to current matchup
-    cookieStore.set("cr_pending_matchup", `${leftId}|${rightId}|${topicSlug}`, {
-      maxAge: 60 * 60, // 1 hour — stale impressions should not trigger skips
-      path: "/",
-      httpOnly: true,
-      sameSite: "lax",
-    });
+    cookieStore.set("cr_pending_matchup", `${leftId}|${rightId}|${topicSlug}`, { maxAge: 60 * 60, path: "/", httpOnly: true, sameSite: "lax" });
   } catch (err) {
     console.error("Impression error:", err);
   }
@@ -336,14 +302,12 @@ export async function getTopicVoteCount(topicSlug: string): Promise<number> {
   return parseInt(cookieStore.get(`cr_votes_${topicSlug}`)?.value ?? "0", 10);
 }
 
-export async function getInitialMatchup(
-  topicSlug: string = DEFAULT_TOPIC_SLUG
-): Promise<Matchup | null> {
-  const topicId = await getTopicId(topicSlug);
-  if (!topicId) return null;
+export async function getInitialMatchup(topicSlug: string = DEFAULT_TOPIC_SLUG): Promise<Matchup | null> {
+  const topic = await getTopicInfo(topicSlug);
+  if (!topic) return null;
 
-  const colleges = await fetchCollegesForTopic(topicId);
-  if (colleges.length < 2) return null;
+  const items = await fetchItemsForTopic(topic.id, topic.is_system);
+  if (items.length < 2) return null;
 
-  return withToken(generateMatchup(colleges));
+  return withToken(generateMatchup(items));
 }

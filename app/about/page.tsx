@@ -1,8 +1,8 @@
 import Link from "next/link";
 
 export const metadata = {
-  title: "About — College Clash",
-  description: "How College Clash uses ELO rankings to produce community-driven college rankings.",
+  title: "About — Duelist",
+  description: "How Duelist uses ELO rankings to produce community-driven rankings for any topic.",
 };
 
 export default function AboutPage() {
@@ -15,7 +15,7 @@ export default function AboutPage() {
             href="/"
             className="text-base font-bold text-zinc-900 dark:text-zinc-100 tracking-tight hover:opacity-80 transition-opacity"
           >
-            College Clash
+            Duelist
           </Link>
           <Link
             href="/"
@@ -24,7 +24,7 @@ export default function AboutPage() {
             <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
               <path strokeLinecap="round" strokeLinejoin="round" d="M7 16l-4-4m0 0l4-4m-4 4h18" />
             </svg>
-            Vote
+            Topics
           </Link>
         </div>
       </header>
@@ -34,12 +34,12 @@ export default function AboutPage() {
         {/* Hero */}
         <div className="mb-14">
           <h1 className="text-3xl sm:text-4xl font-bold text-zinc-900 dark:text-zinc-100 tracking-tight mb-4">
-            About College Clash
+            About Duelist
           </h1>
           <p className="text-base text-zinc-500 dark:text-zinc-400 leading-relaxed max-w-2xl">
-            College Clash is a community-powered ranking engine. Instead of relying on opaque
+            Duelist is a community-powered ranking engine. Instead of relying on opaque
             editorial decisions or weighted metrics, we let people vote head-to-head and let the
-            math do the rest.
+            math do the rest. Pick any topic, vote, and watch the rankings emerge.
           </p>
         </div>
 
@@ -55,8 +55,8 @@ export default function AboutPage() {
             on how surprising the outcome was.
           </p>
           <p className="text-sm text-zinc-500 dark:text-zinc-400 leading-relaxed">
-            If the top-rated school beats a lower-rated school, that&apos;s expected — ratings barely move.
-            But if the lower-rated school wins, that&apos;s an upset — ratings shift dramatically, pulling
+            If the top-rated item beats a lower-rated one, that&apos;s expected — ratings barely move.
+            But if the lower-rated item wins, that&apos;s an upset — ratings shift dramatically, pulling
             the underdog up and the favorite down. Over thousands of matchups, this self-corrects into
             a highly accurate ranking.
           </p>
@@ -72,7 +72,7 @@ export default function AboutPage() {
               <h3 className="text-sm font-semibold text-zinc-800 dark:text-zinc-200 mb-2">Starting Rating</h3>
               <p className="text-3xl font-mono font-bold text-zinc-900 dark:text-zinc-100">1500</p>
               <p className="text-xs text-zinc-500 dark:text-zinc-400 mt-1">
-                Every college begins equal. Rankings emerge entirely from votes — no editorial bias.
+                Every item begins equal. Rankings emerge entirely from votes — no editorial bias.
               </p>
             </div>
             <div className="rounded-xl border border-zinc-200 dark:border-zinc-800 p-5">
@@ -97,8 +97,8 @@ export default function AboutPage() {
               </span>
             </div>
             <p className="text-xs text-zinc-500 dark:text-zinc-400 mt-2">
-              The probability that college A beats college B. A 400-point gap means the higher-rated
-              school wins ~91% of the time. The larger the gap, the less surprising the outcome.
+              The probability that item A beats item B. A 400-point gap means the higher-rated
+              item wins ~91% of the time. The larger the gap, the less surprising the outcome.
             </p>
           </div>
 
@@ -116,15 +116,15 @@ export default function AboutPage() {
             </div>
             <p className="text-xs text-zinc-500 dark:text-zinc-400 mt-2">
               Upsets move ratings more. Expected outcomes move ratings less. The system is zero-sum:
-              every point gained by one school is lost by the other.
+              every point gained by one item is lost by the other.
             </p>
           </div>
         </section>
 
-        {/* Why ELO over US News */}
+        {/* Why ELO */}
         <section className="mb-12">
           <h2 className="text-xl font-semibold text-zinc-900 dark:text-zinc-100 mb-3">
-            Why ELO beats traditional college rankings
+            Why ELO beats traditional rankings
           </h2>
           <div className="space-y-4">
             <div className="flex gap-4">
@@ -134,9 +134,8 @@ export default function AboutPage() {
               <div>
                 <h3 className="text-sm font-semibold text-zinc-800 dark:text-zinc-200 mb-1">No hidden weights</h3>
                 <p className="text-sm text-zinc-500 dark:text-zinc-400 leading-relaxed">
-                  Rankings like US News combine dozens of metrics — faculty resources, graduation rates,
-                  peer reputation scores — using weights that change year to year. The formula is opaque.
-                  College Clash has one input: your vote.
+                  Traditional rankings combine dozens of metrics using weights that change year to year.
+                  The formula is opaque. Duelist has one input: your vote.
                 </p>
               </div>
             </div>
@@ -147,9 +146,8 @@ export default function AboutPage() {
               <div>
                 <h3 className="text-sm font-semibold text-zinc-800 dark:text-zinc-200 mb-1">Self-correcting over time</h3>
                 <p className="text-sm text-zinc-500 dark:text-zinc-400 leading-relaxed">
-                  Early votes have high variance — a few surprise results can temporarily skew a rating.
-                  But as comparisons accumulate, rankings converge toward genuine community consensus.
-                  The more people vote, the more accurate it becomes.
+                  Early votes have high variance. But as comparisons accumulate, rankings converge
+                  toward genuine community consensus. The more people vote, the more accurate it becomes.
                 </p>
               </div>
             </div>
@@ -158,12 +156,10 @@ export default function AboutPage() {
                 <span className="text-xs font-bold text-zinc-600 dark:text-zinc-300">3</span>
               </div>
               <div>
-                <h3 className="text-sm font-semibold text-zinc-800 dark:text-zinc-200 mb-1">Topic-aware rankings</h3>
+                <h3 className="text-sm font-semibold text-zinc-800 dark:text-zinc-200 mb-1">Topic-aware</h3>
                 <p className="text-sm text-zinc-500 dark:text-zinc-400 leading-relaxed">
-                  A single prestige ranking doesn&apos;t capture reality. MIT might rank lower than Harvard
-                  overall, but few would argue it&apos;s not the stronger Computer Science program. College
-                  Clash lets you vote — and see rankings — by specific topics like Engineering, Biology,
-                  or Quality of Life.
+                  A single overall ranking rarely captures reality. Duelist lets you vote — and see rankings —
+                  scoped to specific topics, so niche expertise surfaces where it matters.
                 </p>
               </div>
             </div>
@@ -174,10 +170,8 @@ export default function AboutPage() {
               <div>
                 <h3 className="text-sm font-semibold text-zinc-800 dark:text-zinc-200 mb-1">Resistant to gaming</h3>
                 <p className="text-sm text-zinc-500 dark:text-zinc-400 leading-relaxed">
-                  Traditional rankings can be gamed — schools have been caught manipulating the data
-                  they self-report. In College Clash, the only way to move a school&apos;s rating is to
-                  win individual matchups against real opponents. Ballot stuffing is rate-limited and
-                  IP-tracked.
+                  The only way to move an item&apos;s rating is to win individual matchups against real opponents.
+                  Ballot stuffing is rate-limited and IP-tracked.
                 </p>
               </div>
             </div>
@@ -190,9 +184,9 @@ export default function AboutPage() {
             How matchups are chosen
           </h2>
           <p className="text-sm text-zinc-500 dark:text-zinc-400 leading-relaxed mb-3">
-            70% of matchups use smart pairing: the college with the fewest comparisons is selected,
+            70% of matchups use smart pairing: the item with the fewest comparisons is selected,
             then matched against a similarly-rated opponent (within ~300 ELO points). This accelerates
-            convergence by prioritising underexposed schools and fair fights.
+            convergence by prioritising underexposed items and fair fights.
           </p>
           <p className="text-sm text-zinc-500 dark:text-zinc-400 leading-relaxed">
             The other 30% are random pairings. This adds exploration — surfacing unexpected matchups
@@ -213,16 +207,16 @@ export default function AboutPage() {
             href="/"
             className="inline-flex items-center gap-2 px-5 py-2.5 rounded-xl bg-zinc-900 dark:bg-zinc-100 hover:bg-zinc-700 dark:hover:bg-zinc-300 text-sm font-semibold text-white dark:text-zinc-900 transition-colors"
           >
-            Start voting
+            Browse topics
           </Link>
         </div>
       </main>
 
       <footer className="border-t border-zinc-100 dark:border-zinc-900 py-4 px-4">
         <div className="max-w-3xl mx-auto text-xs text-zinc-400 dark:text-zinc-600 flex items-center justify-between">
-          <span>College Clash &copy; {new Date().getFullYear()}</span>
+          <span>Duelist</span>
           <Link href="/" className="hover:text-zinc-600 dark:hover:text-zinc-400 transition-colors">
-            Back to voting →
+            Back to topics →
           </Link>
         </div>
       </footer>

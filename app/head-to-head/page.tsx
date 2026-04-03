@@ -6,7 +6,7 @@ import Link from "next/link";
 export const revalidate = 60;
 
 export const metadata = {
-  title: "Head to Head — College Clash",
+  title: "Head to Head — Duelist",
   description: "See how any two colleges match up based on community votes.",
 };
 
@@ -36,7 +36,7 @@ export default async function HeadToHeadPage({
             href="/"
             className="text-base font-bold text-zinc-900 dark:text-zinc-100 tracking-tight hover:opacity-80 transition-opacity"
           >
-            College Clash
+            Duelist
           </Link>
           <div className="flex items-center gap-2">
             <Link
@@ -89,7 +89,7 @@ export default async function HeadToHeadPage({
 
       <footer className="border-t border-zinc-100 dark:border-zinc-900 py-4 px-4">
         <div className="max-w-4xl mx-auto text-xs text-zinc-400 dark:text-zinc-600 flex items-center justify-between">
-          <span>College Clash &copy; {new Date().getFullYear()}</span>
+          <span>Duelist</span>
           <span>Refreshes every 60 seconds</span>
         </div>
       </footer>

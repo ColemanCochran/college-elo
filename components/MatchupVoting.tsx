@@ -4,10 +4,9 @@ import { useState, useEffect, useCallback, useRef } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
 import { Matchup } from "@/types";
-import { submitVote, submitSkip, getInitialMatchup, getTopicVoteCount, recordMatchupImpression } from "@/app/actions/vote";
-import { LEADERBOARD_VOTE_THRESHOLD } from "@/lib/constants";
+import { submitVote, submitSkip, recordMatchupImpression } from "@/app/actions/vote";
 import { getTopicQuestion } from "@/lib/topics";
-import CollegeCard from "./CollegeCard";
+import RankableItemCard from "./RankableItemCard";
 import TopicSelector from "./TopicSelector";
 
 interface MatchupVotingProps {
@@ -16,6 +15,10 @@ interface MatchupVotingProps {
   initialVoteCount: number;
   initialTopicSlug: string;
   topics: { slug: string; name: string }[];
+  /** Leaderboard unlock threshold — sourced from topic.leaderboard_unlock_votes */
+  threshold: number;
+  isSystem: boolean;
+  description?: string | null;
 }
 
 type VoteState = "idle" | "voting" | "animating";
@@ -26,10 +29,14 @@ export default function MatchupVoting({
   initialVoteCount,
   initialTopicSlug,
   topics,
+  threshold,
+  isSystem,
+  description,
 }: MatchupVotingProps) {
   const router = useRouter();
+  const topicSlug = initialTopicSlug;
+
   const [matchup, setMatchup] = useState<Matchup>(initialMatchup);
-  const [topicSlug, setTopicSlug] = useState(initialTopicSlug);
   const [voteState, setVoteState] = useState<VoteState>("idle");
   const [selectedSide, setSelectedSide] = useState<"left" | "right" | null>(null);
   const [totalVotes, setTotalVotes] = useState(0);
@@ -37,45 +44,21 @@ export default function MatchupVoting({
   const [error, setError] = useState<string | null>(null);
   const submittingRef = useRef(false);
 
-  const leaderboardUnlocked = cumulativeVotes >= LEADERBOARD_VOTE_THRESHOLD;
-  const remaining = Math.max(0, LEADERBOARD_VOTE_THRESHOLD - cumulativeVotes);
+  const leaderboardUnlocked = cumulativeVotes >= threshold;
+  const remaining = Math.max(0, threshold - cumulativeVotes);
   const currentTopic = topics.find(t => t.slug === topicSlug) ?? topics[0];
   const heading = getTopicQuestion(topicSlug, currentTopic?.name ?? topicSlug);
 
-  // Track matchup impressions — detects refresh-skips (user saw a matchup but refreshed instead of voting)
+  // Track matchup impressions — detects refresh-skips
   useEffect(() => {
     recordMatchupImpression(matchup.left.id, matchup.right.id, topicSlug);
   }, [matchup.left.id, matchup.right.id, topicSlug]);
 
-  // Restore topic from localStorage on mount (only if URL has no explicit topic param)
-  useEffect(() => {
-    if (!window.location.search.includes("topic=")) {
-      const saved = localStorage.getItem("cc_topic");
-      if (saved && saved !== topicSlug && topics.some(t => t.slug === saved)) {
-        handleTopicChange(saved);
-      }
-    }
-  // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []);
-
+  // Topic switching navigates to the new topic's page
   const handleTopicChange = useCallback(
-    async (slug: string) => {
-      if (slug === topicSlug || submittingRef.current) return;
-      submittingRef.current = true;
-      setVoteState("animating");
-
-      localStorage.setItem("cc_topic", slug);
-      router.replace(`/?topic=${slug}`, { scroll: false });
-
-      const [newMatchup, topicVoteCount] = await Promise.all([
-        getInitialMatchup(slug),
-        getTopicVoteCount(slug),
-      ]);
-      setTopicSlug(slug);
-      if (newMatchup) setMatchup(newMatchup);
-      setCumulativeVotes(topicVoteCount);
-      setVoteState("idle");
-      submittingRef.current = false;
+    (slug: string) => {
+      if (slug === topicSlug) return;
+      router.push(`/topic/${slug}`);
     },
     [topicSlug, router]
   );
@@ -163,22 +146,35 @@ export default function MatchupVoting({
     <div className="w-full max-w-3xl mx-auto flex flex-col gap-5">
       {/* Topic selector + heading */}
       <div className="text-center flex flex-col gap-2">
-        <TopicSelector
-          topics={topics}
-          selectedSlug={topicSlug}
-          onSelect={handleTopicChange}
-          disabled={isDisabled}
-        />
-        <p className="text-sm text-zinc-500 dark:text-zinc-400">
-          Click a card to vote · ELO updates instantly after each matchup
-        </p>
+        {isSystem ? (
+          <>
+            <TopicSelector
+              topics={topics}
+              selectedSlug={topicSlug}
+              onSelect={handleTopicChange}
+              disabled={isDisabled}
+            />
+            <p className="text-sm text-zinc-500 dark:text-zinc-400">
+              {heading} · ELO updates instantly after each matchup
+            </p>
+          </>
+        ) : (
+          <>
+            <h1 className="text-xl font-bold text-zinc-900 dark:text-zinc-100 tracking-tight">
+              {currentTopic?.name}
+            </h1>
+            {description && (
+              <p className="text-sm text-zinc-500 dark:text-zinc-400">{description}</p>
+            )}
+          </>
+        )}
       </div>
 
       {/* Leaderboard unlock progress / unlocked CTA */}
       <div className="flex flex-col items-center gap-2">
         {leaderboardUnlocked ? (
           <Link
-            href={`/leaderboard?topic=${topicSlug}`}
+            href={`/topic/${topicSlug}/leaderboard`}
             className="flex items-center gap-1.5 px-4 py-2 rounded-lg bg-zinc-900 dark:bg-zinc-100 hover:bg-zinc-700 dark:hover:bg-zinc-300 text-sm font-medium text-white dark:text-zinc-900 transition-colors"
           >
             <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
@@ -195,12 +191,12 @@ export default function MatchupVoting({
                 </svg>
                 Rankings locked
               </span>
-              <span>{cumulativeVotes} / {LEADERBOARD_VOTE_THRESHOLD} votes</span>
+              <span>{cumulativeVotes} / {threshold} votes</span>
             </div>
             <div className="w-full h-1.5 rounded-full bg-zinc-100 dark:bg-zinc-800 overflow-hidden">
               <div
                 className="h-full rounded-full bg-zinc-400 dark:bg-zinc-500 transition-all duration-300"
-                style={{ width: `${(cumulativeVotes / LEADERBOARD_VOTE_THRESHOLD) * 100}%` }}
+                style={{ width: `${Math.min(100, (cumulativeVotes / threshold) * 100)}%` }}
               />
             </div>
             <p className="text-xs text-zinc-400 dark:text-zinc-600">
@@ -216,16 +212,16 @@ export default function MatchupVoting({
           voteState === "animating" ? "opacity-0" : "opacity-100"
         }`}
       >
-        <CollegeCard
-          college={matchup.left}
+        <RankableItemCard
+          item={matchup.left}
           side="left"
           onSelect={() => handleVote("left")}
           disabled={isDisabled}
           selected={selectedSide === "left"}
           lost={selectedSide === "right"}
         />
-        <CollegeCard
-          college={matchup.right}
+        <RankableItemCard
+          item={matchup.right}
           side="right"
           onSelect={() => handleVote("right")}
           disabled={isDisabled}

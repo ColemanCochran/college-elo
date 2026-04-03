@@ -2,6 +2,16 @@ export const ELO_DEFAULT = 1500;
 export const ELO_K_FACTOR = 32;
 
 /**
+ * Minimum shape required to participate in ELO-based matchmaking.
+ * Both the legacy College type and the new TopicItem type satisfy this.
+ */
+export interface RankableItem {
+  id: string;
+  elo_rating: number;
+  comparisons: number;
+}
+
+/**
  * Calculate expected score for player A against player B.
  * Returns a value between 0 and 1.
  */
