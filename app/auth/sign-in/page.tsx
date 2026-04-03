@@ -1,11 +1,11 @@
 "use client";
 
-import { useState } from "react";
+import { useState, Suspense } from "react";
 import Link from "next/link";
 import { useSearchParams } from "next/navigation";
 import { createClient } from "@/lib/supabase-client";
 
-export default function SignInPage() {
+function SignInForm() {
   const searchParams = useSearchParams();
   const next = searchParams.get("next") ?? "/dashboard";
 
@@ -122,5 +122,13 @@ export default function SignInPage() {
         </div>
       </footer>
     </div>
+  );
+}
+
+export default function SignInPage() {
+  return (
+    <Suspense>
+      <SignInForm />
+    </Suspense>
   );
 }
