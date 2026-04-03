@@ -176,19 +176,10 @@ export default function RankableItemCard({
       )}
 
       <div className="flex flex-col items-center gap-4 p-6 sm:p-8 w-full">
-        {/* Name + optional college metadata */}
         <div className="text-center">
           <h2 className="text-base sm:text-lg font-semibold text-zinc-900 dark:text-zinc-100 leading-tight">
             {item.name}
           </h2>
-          {meta && (
-            <p className="mt-1 text-xs text-zinc-500 dark:text-zinc-400">
-              {meta.state} &middot;{" "}
-              <span className={meta.type === "Private" ? "text-violet-600 dark:text-violet-400" : "text-sky-600 dark:text-sky-400"}>
-                {meta.type}
-              </span>
-            </p>
-          )}
         </div>
       </div>
     </button>
