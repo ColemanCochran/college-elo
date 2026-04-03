@@ -1,8 +1,8 @@
 import { createClient } from "@/lib/supabase-server";
+import { getAdminSession } from "@/lib/admin-auth";
 import TopicCard, { TopicCardData } from "@/components/TopicCard";
 import Link from "next/link";
 import { redirect } from "next/navigation";
-import { getUser } from "@/lib/supabase-server";
 
 export const dynamic = "force-dynamic";
 
@@ -23,7 +23,7 @@ export default async function DiscoverPage({
     redirect(`/topic/${topic}`);
   }
 
-  const [supabase, user] = await Promise.all([createClient(), getUser()]);
+  const [supabase, isAdmin] = await Promise.all([createClient(), getAdminSession()]);
   const { data: allTopics } = await supabase
     .from("topics")
     .select("slug, name, description, is_system, leaderboard_unlock_votes")
@@ -58,7 +58,7 @@ export default async function DiscoverPage({
             >
               About
             </Link>
-            {user ? (
+            {isAdmin ? (
               <Link
                 href="/dashboard"
                 className="px-3 py-1.5 rounded-lg bg-zinc-900 dark:bg-zinc-100 hover:bg-zinc-700 dark:hover:bg-zinc-300 text-sm font-medium text-white dark:text-zinc-900 transition-colors"
@@ -138,7 +138,7 @@ export default async function DiscoverPage({
             <Link href="/about" className="hover:text-zinc-600 dark:hover:text-zinc-400 transition-colors">
               About
             </Link>
-            {!user && (
+            {!isAdmin && (
               <Link href="/auth/sign-in" className="hover:text-zinc-600 dark:hover:text-zinc-400 transition-colors">
                 Sign in
               </Link>

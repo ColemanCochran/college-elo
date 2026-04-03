@@ -2,13 +2,9 @@
 
 import { useState, Suspense } from "react";
 import Link from "next/link";
-import { useSearchParams } from "next/navigation";
-import { createClient } from "@/lib/supabase-client";
+import { adminSignIn } from "@/app/actions/auth";
 
 function SignInForm() {
-  const searchParams = useSearchParams();
-  const next = searchParams.get("next") ?? "/dashboard";
-
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [state, setState] = useState<"idle" | "loading" | "error">("idle");
@@ -17,28 +13,20 @@ function SignInForm() {
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
     if (!email.trim() || !password) return;
-
     setState("loading");
     setErrorMessage("");
-
-    const supabase = createClient();
-    const { error } = await supabase.auth.signInWithPassword({
-      email: email.trim(),
-      password,
-    });
-
-    if (error) {
-      setErrorMessage("Invalid email or password.");
+    const result = await adminSignIn(email, password);
+    if (result?.error) {
+      setErrorMessage(result.error);
       setState("error");
-    } else {
-      window.location.href = next;
     }
+    // On success the server action redirects — no client handling needed
   }
 
   return (
     <div className="flex flex-col min-h-screen">
       <header className="border-b border-zinc-200 dark:border-zinc-800 bg-white/80 dark:bg-zinc-950/80 backdrop-blur-sm sticky top-0 z-10">
-        <div className="max-w-3xl mx-auto px-4 py-3 flex items-center justify-between">
+        <div className="max-w-3xl mx-auto px-4 py-3">
           <Link
             href="/"
             className="text-base font-bold text-zinc-900 dark:text-zinc-100 tracking-tight hover:opacity-80 transition-opacity"

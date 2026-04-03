@@ -1,4 +1,5 @@
-import { createClient, getUser } from "@/lib/supabase-server";
+import { createClient } from "@/lib/supabase-server";
+import { getAdminSession, } from "@/lib/admin-auth";
 import { signOut } from "@/app/actions/auth";
 import Link from "next/link";
 import { redirect } from "next/navigation";
@@ -10,14 +11,13 @@ export const metadata = {
 };
 
 export default async function DashboardPage() {
-  const user = await getUser();
-  if (!user) redirect("/auth/sign-in?next=/dashboard");
+  const isAdmin = await getAdminSession();
+  if (!isAdmin) redirect("/auth/sign-in");
 
   const supabase = await createClient();
   const { data: topics } = await supabase
     .from("topics")
     .select("id, slug, name, description, leaderboard_unlock_votes, created_at")
-    .eq("owner_id", user.id)
     .eq("is_system", false)
     .order("created_at", { ascending: false });
 
@@ -33,26 +33,21 @@ export default async function DashboardPage() {
           >
             Duelist
           </Link>
-          <div className="flex items-center gap-2">
-            <span className="text-xs text-zinc-400 dark:text-zinc-600 hidden sm:block">
-              {user.email}
-            </span>
-            <form action={signOut}>
-              <button
-                type="submit"
-                className="px-3 py-1.5 rounded-lg bg-zinc-100 dark:bg-zinc-800 hover:bg-zinc-200 dark:hover:bg-zinc-700 text-sm font-medium text-zinc-700 dark:text-zinc-300 transition-colors"
-              >
-                Sign out
-              </button>
-            </form>
-          </div>
+          <form action={signOut}>
+            <button
+              type="submit"
+              className="px-3 py-1.5 rounded-lg bg-zinc-100 dark:bg-zinc-800 hover:bg-zinc-200 dark:hover:bg-zinc-700 text-sm font-medium text-zinc-700 dark:text-zinc-300 transition-colors"
+            >
+              Sign out
+            </button>
+          </form>
         </div>
       </header>
 
       <main className="flex-1 max-w-3xl mx-auto w-full px-4 py-10 sm:py-12">
         <div className="flex items-center justify-between mb-8">
           <h1 className="text-2xl font-bold text-zinc-900 dark:text-zinc-100 tracking-tight">
-            Your forums
+            Forums
           </h1>
           <Link
             href="/create"

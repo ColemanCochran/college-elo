@@ -1,7 +1,7 @@
 "use server";
 
 import { createAdminClient } from "@/lib/supabase-server";
-import { requireAuth } from "@/lib/auth";
+import { getAdminSession } from "@/lib/admin-auth";
 import { redirect } from "next/navigation";
 
 function slugify(text: string): string {
@@ -13,21 +13,12 @@ function slugify(text: string): string {
     .replace(/^-+|-+$/g, "");
 }
 
-function isAdmin(email: string | undefined): boolean {
-  const allowed = (process.env.ADMIN_EMAILS ?? "")
-    .split(",")
-    .map(e => e.trim().toLowerCase())
-    .filter(Boolean);
-  return allowed.includes((email ?? "").toLowerCase());
-}
-
 export async function createTopic(data: {
   name: string;
   description: string;
   items: string[];
 }): Promise<{ error: string } | void> {
-  const user = await requireAuth();
-  if (!isAdmin(user.email)) return { error: "Forum creation is currently by invite only." };
+  if (!(await getAdminSession())) return { error: "Not authorized." };
   const admin = createAdminClient();
 
   const name = data.name.trim();
@@ -91,17 +82,16 @@ export async function updateTopic(
   topicId: string,
   data: { name: string; description: string; items: string[] }
 ): Promise<{ error: string } | void> {
-  const user = await requireAuth();
+  if (!(await getAdminSession())) return { error: "Not authorized." };
   const admin = createAdminClient();
 
   const { data: topic } = await admin
     .from("topics")
-    .select("id, slug, owner_id, is_system")
+    .select("id, slug, is_system")
     .eq("id", topicId)
     .single();
 
   if (!topic || topic.is_system) return { error: "Forum not found." };
-  if (topic.owner_id !== user.id) return { error: "You don't have permission to edit this forum." };
 
   const name = data.name.trim();
   const description = data.description.trim();

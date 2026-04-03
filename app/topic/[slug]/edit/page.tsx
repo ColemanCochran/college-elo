@@ -1,4 +1,5 @@
-import { createClient, getUser } from "@/lib/supabase-server";
+import { createClient } from "@/lib/supabase-server";
+import { getAdminSession } from "@/lib/admin-auth";
 import { redirect, notFound } from "next/navigation";
 import EditForumForm from "@/components/EditForumForm";
 import Link from "next/link";
@@ -22,18 +23,17 @@ export default async function EditForumPage({
   params: Promise<{ slug: string }>;
 }) {
   const { slug } = await params;
-  const [supabase, user] = await Promise.all([createClient(), getUser()]);
+  const [supabase, isAdmin] = await Promise.all([createClient(), getAdminSession()]);
 
-  if (!user) redirect(`/auth/sign-in?next=/topic/${slug}/edit`);
+  if (!isAdmin) redirect(`/auth/sign-in`);
 
   const { data: topic } = await supabase
     .from("topics")
-    .select("id, name, slug, description, owner_id, is_system")
+    .select("id, name, slug, description, is_system")
     .eq("slug", slug)
     .single();
 
   if (!topic || topic.is_system) notFound();
-  if (topic.owner_id !== user.id) redirect(`/topic/${slug}`);
 
   const { data: itemRows } = await supabase
     .from("topic_items")
