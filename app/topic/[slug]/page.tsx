@@ -6,6 +6,7 @@ import Link from "next/link";
 import { cookies } from "next/headers";
 import { notFound } from "next/navigation";
 import crypto from "crypto";
+import ThemeToggle from "@/components/ThemeToggle";
 
 export const dynamic = "force-dynamic";
 
@@ -102,6 +103,7 @@ export default async function TopicVotePage({
             Duelist
           </Link>
           <div className="flex items-center gap-2">
+            <ThemeToggle />
             {leaderboardUnlocked ? (
               <Link
                 href={`/topic/${slug}/leaderboard`}

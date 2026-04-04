@@ -3,6 +3,7 @@
 import { useState, Suspense } from "react";
 import Link from "next/link";
 import { adminSignIn } from "@/app/actions/auth";
+import ThemeToggle from "@/components/ThemeToggle";
 
 function SignInForm() {
   const [email, setEmail] = useState("");
@@ -26,13 +27,14 @@ function SignInForm() {
   return (
     <div className="flex flex-col min-h-screen">
       <header className="border-b border-zinc-200 dark:border-zinc-800 bg-white/80 dark:bg-zinc-950/80 backdrop-blur-sm sticky top-0 z-10">
-        <div className="max-w-3xl mx-auto px-4 py-3">
+        <div className="max-w-3xl mx-auto px-4 py-3 flex items-center justify-between">
           <Link
             href="/"
             className="text-base font-bold text-zinc-900 dark:text-zinc-100 tracking-tight hover:opacity-80 transition-opacity"
           >
             Duelist
           </Link>
+          <ThemeToggle />
         </div>
       </header>
 

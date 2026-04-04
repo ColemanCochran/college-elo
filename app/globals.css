@@ -1,5 +1,7 @@
 @import "tailwindcss";
 
+@custom-variant dark (&:where(.dark, .dark *));
+
 :root {
   --background: #ffffff;
   --foreground: #09090b;
@@ -12,11 +14,9 @@
   --font-mono: var(--font-geist-mono);
 }
 
-@media (prefers-color-scheme: dark) {
-  :root {
-    --background: #09090b;
-    --foreground: #fafafa;
-  }
+.dark {
+  --background: #09090b;
+  --foreground: #fafafa;
 }
 
 body {
@@ -37,8 +37,6 @@ body {
   background: #d4d4d8;
   border-radius: 3px;
 }
-@media (prefers-color-scheme: dark) {
-  ::-webkit-scrollbar-thumb {
-    background: #3f3f46;
-  }
+.dark ::-webkit-scrollbar-thumb {
+  background: #3f3f46;
 }

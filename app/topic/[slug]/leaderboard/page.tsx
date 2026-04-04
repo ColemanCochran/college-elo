@@ -4,6 +4,7 @@ import Link from "next/link";
 import { cookies } from "next/headers";
 import { redirect, notFound } from "next/navigation";
 import { College } from "@/types";
+import ThemeToggle from "@/components/ThemeToggle";
 
 export const dynamic = "force-dynamic";
 
@@ -127,6 +128,7 @@ export default async function TopicLeaderboardPage({
             Duelist
           </Link>
           <div className="flex items-center gap-2">
+            <ThemeToggle />
             <Link
               href={`/topic/${slug}`}
               className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-zinc-900 dark:bg-zinc-100 hover:bg-zinc-700 dark:hover:bg-zinc-300 text-sm font-medium text-white dark:text-zinc-900 transition-colors"

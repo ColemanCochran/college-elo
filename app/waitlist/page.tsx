@@ -2,6 +2,7 @@
 
 import { useState } from "react";
 import Link from "next/link";
+import ThemeToggle from "@/components/ThemeToggle";
 import { joinWaitlist } from "@/app/actions/waitlist";
 
 export default function WaitlistPage() {
@@ -34,6 +35,7 @@ export default function WaitlistPage() {
           >
             Duelist
           </Link>
+          <ThemeToggle />
         </div>
       </header>
 

@@ -4,6 +4,7 @@ import { useState } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
 import { createTopic } from "@/app/actions/topics";
+import ThemeToggle from "@/components/ThemeToggle";
 
 export default function CreateTopicPage() {
   const router = useRouter();
@@ -41,12 +42,15 @@ export default function CreateTopicPage() {
           >
             Duelist
           </Link>
-          <Link
-            href="/dashboard"
-            className="px-3 py-1.5 rounded-lg bg-zinc-100 dark:bg-zinc-800 hover:bg-zinc-200 dark:hover:bg-zinc-700 text-sm font-medium text-zinc-700 dark:text-zinc-300 transition-colors"
-          >
-            Dashboard
-          </Link>
+          <div className="flex items-center gap-2">
+            <ThemeToggle />
+            <Link
+              href="/dashboard"
+              className="px-3 py-1.5 rounded-lg bg-zinc-100 dark:bg-zinc-800 hover:bg-zinc-200 dark:hover:bg-zinc-700 text-sm font-medium text-zinc-700 dark:text-zinc-300 transition-colors"
+            >
+              Dashboard
+            </Link>
+          </div>
         </div>
       </header>
 

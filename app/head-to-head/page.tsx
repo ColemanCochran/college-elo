@@ -2,6 +2,7 @@ import { createClient } from "@/lib/supabase-server";
 import { getHeadToHead, getTopMatchups } from "@/app/actions/matchup";
 import HeadToHeadLookup from "@/components/HeadToHeadLookup";
 import Link from "next/link";
+import ThemeToggle from "@/components/ThemeToggle";
 
 export const revalidate = 60;
 
@@ -39,6 +40,7 @@ export default async function HeadToHeadPage({
             Duelist
           </Link>
           <div className="flex items-center gap-2">
+            <ThemeToggle />
             <Link
               href="/"
               className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-zinc-900 dark:bg-zinc-100 hover:bg-zinc-700 dark:hover:bg-zinc-300 text-sm font-medium text-white dark:text-zinc-900 transition-colors"
