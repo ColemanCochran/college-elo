@@ -1,6 +1,7 @@
 "use client";
 
 import { useState } from "react";
+import { getFlag } from "@/lib/flags";
 
 export interface RankableCardItem {
   id: string;
@@ -156,6 +157,7 @@ export default function RankableItemCard({
 }: RankableItemCardProps) {
   const [imageError, setImageError] = useState(false);
   const resolvedUrl = LOGO_MAP[item.slug] ?? item.logo_url ?? item.image_url ?? null;
+  const flag = getFlag(item.slug);
   const showImage = resolvedUrl && !imageError;
 
   return (
@@ -200,7 +202,11 @@ export default function RankableItemCard({
       )}
 
       <div className="flex flex-col items-center gap-4 p-6 sm:p-8 w-full">
-        {showImage ? (
+        {flag ? (
+          <div className="w-20 h-20 sm:w-24 sm:h-24 rounded-full flex items-center justify-center bg-zinc-50 dark:bg-zinc-800 border border-zinc-100 dark:border-zinc-700 shadow-sm">
+            <span className="text-5xl sm:text-6xl leading-none">{flag}</span>
+          </div>
+        ) : showImage ? (
           <div className="w-20 h-20 sm:w-24 sm:h-24 rounded-full overflow-hidden flex items-center justify-center bg-white dark:bg-zinc-800 border border-zinc-100 dark:border-zinc-700 shadow-sm">
             <img
               src={resolvedUrl}

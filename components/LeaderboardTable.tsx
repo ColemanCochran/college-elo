@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useMemo } from "react";
+import { getFlag } from "@/lib/flags";
 
 const LOGO_MAP: Record<string, string> = {
   harvard: "/logos/harvard.png",
@@ -75,6 +76,14 @@ const LOGO_MAP: Record<string, string> = {
 function EntryLogo({ slug, name, logo_url, image_url }: { slug: string; name: string; logo_url?: string | null; image_url?: string | null }) {
   const [error, setError] = useState(false);
   const url = LOGO_MAP[slug] ?? logo_url ?? image_url ?? null;
+  const flag = getFlag(slug);
+  if (flag) {
+    return (
+      <div className="w-8 h-8 rounded-full bg-zinc-50 dark:bg-zinc-800 flex items-center justify-center flex-shrink-0 border border-zinc-100 dark:border-zinc-700">
+        <span className="text-lg leading-none">{flag}</span>
+      </div>
+    );
+  }
   if (!url || error) {
     return (
       <div className="w-8 h-8 rounded-full bg-zinc-100 dark:bg-zinc-800 flex items-center justify-center flex-shrink-0 border border-zinc-200 dark:border-zinc-700">
