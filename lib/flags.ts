@@ -254,61 +254,7 @@ const JOB_MAP: Record<string, string> = {
   "uxui-designer": "🖌️",
 };
 
-/** Maps employer slugs to emoji. */
-const EMPLOYER_MAP: Record<string, string> = {
-  adobe: "🎨",
-  airbnb: "🏠",
-  amazon: "📦",
-  apple: "🍎",
-  "bain-company": "📊",
-  "bank-of-america": "🏦",
-  blackrock: "💰",
-  bloomberg: "📰",
-  boeing: "✈️",
-  "boston-consulting-group": "📐",
-  "capital-one": "💳",
-  citadel: "🏰",
-  citi: "🏦",
-  deloitte: "📋",
-  "electronic-arts": "🎮",
-  "ernst-young": "📋",
-  "goldman-sachs": "💹",
-  google: "🔍",
-  ibm: "🖥️",
-  intel: "🔬",
-  "jane-street": "🧮",
-  "johnson-johnson": "💊",
-  "jp-morgan": "🏦",
-  kpmg: "📋",
-  loral: "💄",
-  "lockheed-martin": "🛩️",
-  "mckinsey-company": "📐",
-  meta: "👁️",
-  microsoft: "🪟",
-  "morgan-stanley": "💹",
-  nasa: "🚀",
-  netflix: "🎬",
-  nike: "👟",
-  "northrop-grumman": "🛡️",
-  nvidia: "🟢",
-  openai: "🤖",
-  "palantir-technologies": "🔮",
-  pfizer: "💉",
-  "procter-gamble": "🧴",
-  pwc: "📋",
-  salesforce: "☁️",
-  sony: "🎵",
-  spacex: "🚀",
-  spotify: "🎧",
-  stripe: "💳",
-  tesla: "⚡",
-  "the-walt-disney-company": "🏰",
-  uber: "🚗",
-  unilever: "🧼",
-  visa: "💳",
-};
-
-/** Look up an emoji for a given slug. Checks flags, jobs, and employers. Returns null if no match. */
+/** Look up an emoji for a given slug. Checks flags and jobs. Returns null if no match. */
 export function getFlag(slug: string): string | null {
-  return FLAG_MAP[slug] ?? JOB_MAP[slug] ?? EMPLOYER_MAP[slug] ?? null;
+  return FLAG_MAP[slug] ?? JOB_MAP[slug] ?? null;
 }
