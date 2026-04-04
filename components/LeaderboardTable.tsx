@@ -69,6 +69,7 @@ const LOGO_MAP: Record<string, string> = {
   "texas-am": "/logos/texas-am.png",
   "cu-boulder": "/logos/cu-boulder.png",
   "colorado-mines": "/logos/colorado-mines.png",
+  ucsd: "/logos/ucsd.png",
 };
 
 function EntryLogo({ slug, name, logo_url, image_url }: { slug: string; name: string; logo_url?: string | null; image_url?: string | null }) {

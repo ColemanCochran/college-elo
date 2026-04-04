@@ -81,6 +81,7 @@ const LOGO_MAP: Record<string, string> = {
   "texas-am": "/logos/texas-am.png",
   "cu-boulder": "/logos/cu-boulder.png",
   "colorado-mines": "/logos/colorado-mines.png",
+  ucsd: "/logos/ucsd.png",
 };
 
 function getLogoUrl(slug: string): string | null {
