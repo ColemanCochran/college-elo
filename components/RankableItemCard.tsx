@@ -1,5 +1,7 @@
 "use client";
 
+import { useState } from "react";
+
 export interface RankableCardItem {
   id: string;
   name: string;
@@ -132,7 +134,9 @@ export default function RankableItemCard({
   selected,
   lost,
 }: RankableItemCardProps) {
-  const meta = STATE_MAP[item.slug];
+  const [imageError, setImageError] = useState(false);
+  const resolvedUrl = LOGO_MAP[item.slug] ?? item.logo_url ?? item.image_url ?? null;
+  const showImage = resolvedUrl && !imageError;
 
   return (
     <button
@@ -176,6 +180,22 @@ export default function RankableItemCard({
       )}
 
       <div className="flex flex-col items-center gap-4 p-6 sm:p-8 w-full">
+        {showImage ? (
+          <div className="w-20 h-20 sm:w-24 sm:h-24 rounded-full overflow-hidden flex items-center justify-center bg-white dark:bg-zinc-800 border border-zinc-100 dark:border-zinc-700 shadow-sm">
+            <img
+              src={resolvedUrl}
+              alt={`${item.name} logo`}
+              className="w-full h-full object-contain p-1"
+              onError={() => setImageError(true)}
+            />
+          </div>
+        ) : (
+          <div className="w-20 h-20 sm:w-24 sm:h-24 rounded-full flex items-center justify-center bg-zinc-100 dark:bg-zinc-800 border border-zinc-200 dark:border-zinc-700">
+            <span className="text-2xl font-bold text-zinc-500 dark:text-zinc-400">
+              {item.name.charAt(0).toUpperCase()}
+            </span>
+          </div>
+        )}
         <div className="text-center">
           <h2 className="text-base sm:text-lg font-semibold text-zinc-900 dark:text-zinc-100 leading-tight">
             {item.name}

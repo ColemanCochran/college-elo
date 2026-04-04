@@ -1,6 +1,78 @@
 "use client";
 
 import { useState, useMemo } from "react";
+
+const LOGO_MAP: Record<string, string> = {
+  harvard: "https://upload.wikimedia.org/wikipedia/commons/thumb/c/cc/Harvard_University_coat_of_arms.svg/250px-Harvard_University_coat_of_arms.svg.png",
+  stanford: "https://upload.wikimedia.org/wikipedia/commons/thumb/b/b5/Seal_of_Leland_Stanford_Junior_University.svg/250px-Seal_of_Leland_Stanford_Junior_University.svg.png",
+  mit: "https://upload.wikimedia.org/wikipedia/commons/thumb/b/b8/MIT_2023_red_logo.svg/250px-MIT_2023_red_logo.svg.png",
+  princeton: "https://upload.wikimedia.org/wikipedia/commons/thumb/d/d0/Princeton_seal.svg/250px-Princeton_seal.svg.png",
+  yale: "https://upload.wikimedia.org/wikipedia/commons/thumb/0/07/Yale_University_Shield_1.svg/250px-Yale_University_Shield_1.svg.png",
+  columbia: "https://upload.wikimedia.org/wikipedia/commons/thumb/3/33/Coat_of_Arms_of_Columbia_University.svg/250px-Coat_of_Arms_of_Columbia_University.svg.png",
+  uchicago: "https://upload.wikimedia.org/wikipedia/en/thumb/7/79/University_of_Chicago_shield.svg/250px-University_of_Chicago_shield.svg.png",
+  upenn: "https://upload.wikimedia.org/wikipedia/commons/thumb/9/92/UPenn_shield_with_banner.svg/250px-UPenn_shield_with_banner.svg.png",
+  duke: "https://upload.wikimedia.org/wikipedia/commons/thumb/e/e6/Duke_University_logo.svg/250px-Duke_University_logo.svg.png",
+  northwestern: "https://upload.wikimedia.org/wikipedia/commons/thumb/5/56/Northwestern_University_seal.svg/250px-Northwestern_University_seal.svg.png",
+  "johns-hopkins": "https://upload.wikimedia.org/wikipedia/en/thumb/f/fb/Johns_Hopkins_University_logo.svg/250px-Johns_Hopkins_University_logo.svg.png",
+  dartmouth: "https://upload.wikimedia.org/wikipedia/en/thumb/e/e4/Dartmouth_College_shield.svg/250px-Dartmouth_College_shield.svg.png",
+  brown: "https://upload.wikimedia.org/wikipedia/commons/thumb/a/ac/Brown_seal.svg/250px-Brown_seal.svg.png",
+  cornell: "https://upload.wikimedia.org/wikipedia/commons/thumb/4/47/Cornell_University_seal.svg/250px-Cornell_University_seal.svg.png",
+  rice: "https://upload.wikimedia.org/wikipedia/en/thumb/c/c7/Rice_University_seal.svg/250px-Rice_University_seal.svg.png",
+  vanderbilt: "https://upload.wikimedia.org/wikipedia/en/thumb/2/29/Vanderbilt_University_seal.svg/250px-Vanderbilt_University_seal.svg.png",
+  "notre-dame": "https://upload.wikimedia.org/wikipedia/commons/thumb/e/e2/University_of_Notre_Dame_seal_%282%29.svg/250px-University_of_Notre_Dame_seal_%282%29.svg.png",
+  georgetown: "https://upload.wikimedia.org/wikipedia/commons/thumb/d/d9/Georgetown_University_seal.svg/250px-Georgetown_University_seal.svg.png",
+  emory: "https://upload.wikimedia.org/wikipedia/en/thumb/3/32/Emory_Eagles_logo.svg/250px-Emory_Eagles_logo.svg.png",
+  tufts: "https://upload.wikimedia.org/wikipedia/commons/thumb/1/12/Tufts_University_wordmark.svg/250px-Tufts_University_wordmark.svg.png",
+  cmu: "https://upload.wikimedia.org/wikipedia/commons/thumb/9/9b/Carnegie_Mellon_wordmark.svg/250px-Carnegie_Mellon_wordmark.svg.png",
+  "uc-berkeley": "https://upload.wikimedia.org/wikipedia/commons/thumb/0/0c/Seal_of_the_University_of_California.svg/250px-Seal_of_the_University_of_California.svg.png",
+  ucla: "https://upload.wikimedia.org/wikipedia/commons/thumb/e/ef/UCLA_Bruins_logo.svg/250px-UCLA_Bruins_logo.svg.png",
+  umich: "https://upload.wikimedia.org/wikipedia/commons/thumb/9/93/Seal_of_the_University_of_Michigan.svg/250px-Seal_of_the_University_of_Michigan.svg.png",
+  uva: "https://upload.wikimedia.org/wikipedia/commons/thumb/1/17/University_of_Virginia_seal.svg/250px-University_of_Virginia_seal.svg.png",
+  unc: "https://upload.wikimedia.org/wikipedia/en/thumb/5/5c/University_of_North_Carolina_at_Chapel_Hill_seal.svg/250px-University_of_North_Carolina_at_Chapel_Hill_seal.svg.png",
+  usc: "https://upload.wikimedia.org/wikipedia/commons/thumb/5/5c/University_of_Southern_California_%28USC%29_seal.svg/250px-University_of_Southern_California_%28USC%29_seal.svg.png",
+  "uc-davis": "https://upload.wikimedia.org/wikipedia/commons/thumb/0/09/UC_Davis_wordmark.svg/250px-UC_Davis_wordmark.svg.png",
+  "ut-austin": "https://upload.wikimedia.org/wikipedia/en/thumb/e/e1/University_of_Texas_at_Austin_seal.svg/250px-University_of_Texas_at_Austin_seal.svg.png",
+  gatech: "https://upload.wikimedia.org/wikipedia/commons/thumb/6/6c/Georgia_Tech_seal.svg/250px-Georgia_Tech_seal.svg.png",
+  "uw-madison": "https://upload.wikimedia.org/wikipedia/commons/thumb/4/45/Seal_of_the_University_of_Wisconsin.svg/250px-Seal_of_the_University_of_Wisconsin.svg.png",
+  uiuc: "https://upload.wikimedia.org/wikipedia/commons/thumb/a/af/University_of_Illinois_seal.svg/250px-University_of_Illinois_seal.svg.png",
+  purdue: "https://upload.wikimedia.org/wikipedia/en/thumb/6/61/Purdue_University_seal.svg/250px-Purdue_University_seal.svg.png",
+  "penn-state": "https://upload.wikimedia.org/wikipedia/en/thumb/3/3a/Penn_State_Nittany_Lions_logo.svg/250px-Penn_State_Nittany_Lions_logo.svg.png",
+  "ohio-state": "https://upload.wikimedia.org/wikipedia/en/thumb/e/e1/Ohio_State_University_seal.svg/250px-Ohio_State_University_seal.svg.png",
+  "uw-seattle": "https://upload.wikimedia.org/wikipedia/en/thumb/5/58/University_of_Washington_seal.svg/250px-University_of_Washington_seal.svg.png",
+  bu: "https://upload.wikimedia.org/wikipedia/commons/thumb/f/f5/Boston_University_seal.svg/250px-Boston_University_seal.svg.png",
+  northeastern: "https://upload.wikimedia.org/wikipedia/commons/thumb/b/bb/NU_RGB_seal_R.png/250px-NU_RGB_seal_R.png",
+  tulane: "https://upload.wikimedia.org/wikipedia/commons/thumb/7/77/Tulane_University_Logo.svg/250px-Tulane_University_Logo.svg.png",
+  "case-western": "https://upload.wikimedia.org/wikipedia/en/thumb/0/08/Case_Western_Reserve_University_seal.svg/250px-Case_Western_Reserve_University_seal.svg.png",
+  rochester: "https://upload.wikimedia.org/wikipedia/en/thumb/c/c8/University_of_Rochester_seal.svg/250px-University_of_Rochester_seal.svg.png",
+  "wake-forest": "https://upload.wikimedia.org/wikipedia/en/thumb/0/0a/Wake_Forest_University_seal.svg/250px-Wake_Forest_University_seal.svg.png",
+  rpi: "https://upload.wikimedia.org/wikipedia/commons/thumb/e/e7/Rensselear_poly_inst_seal.png/250px-Rensselear_poly_inst_seal.png",
+  uf: "https://upload.wikimedia.org/wikipedia/en/thumb/6/6d/University_of_Florida_seal.svg/250px-University_of_Florida_seal.svg.png",
+  uga: "https://upload.wikimedia.org/wikipedia/en/thumb/d/d0/University_of_Georgia_logo.svg/250px-University_of_Georgia_logo.svg.png",
+  indiana: "https://upload.wikimedia.org/wikipedia/en/thumb/5/5d/Indiana_University_seal.svg/250px-Indiana_University_seal.svg.png",
+  umn: "https://upload.wikimedia.org/wikipedia/commons/thumb/8/86/Seal_of_the_University_of_Minnesota.svg/250px-Seal_of_the_University_of_Minnesota.svg.png",
+};
+
+function EntryLogo({ slug, name, logo_url, image_url }: { slug: string; name: string; logo_url?: string | null; image_url?: string | null }) {
+  const [error, setError] = useState(false);
+  const url = LOGO_MAP[slug] ?? logo_url ?? image_url ?? null;
+  if (!url || error) {
+    return (
+      <div className="w-8 h-8 rounded-full bg-zinc-100 dark:bg-zinc-800 flex items-center justify-center flex-shrink-0 border border-zinc-200 dark:border-zinc-700">
+        <span className="text-xs font-bold text-zinc-500 dark:text-zinc-400">
+          {name.charAt(0).toUpperCase()}
+        </span>
+      </div>
+    );
+  }
+  return (
+    <img
+      src={url}
+      alt=""
+      className="w-8 h-8 rounded-full object-contain bg-white dark:bg-zinc-900 border border-zinc-100 dark:border-zinc-800 flex-shrink-0"
+      onError={() => setError(true)}
+    />
+  );
+}
 import { useRouter } from "next/navigation";
 import { SortField } from "@/types";
 import { calcWinRate } from "@/lib/elo";
@@ -156,9 +228,12 @@ export default function LeaderboardTable({ items, topics, currentTopicSlug }: Le
                     </td>
 
                     <td className="px-4 py-3">
-                      <span className="font-medium text-zinc-900 dark:text-zinc-100 leading-tight">
-                        {entry.name}
-                      </span>
+                      <div className="flex items-center gap-3">
+                        <EntryLogo slug={entry.slug} name={entry.name} logo_url={entry.logo_url} image_url={entry.image_url} />
+                        <span className="font-medium text-zinc-900 dark:text-zinc-100 leading-tight">
+                          {entry.name}
+                        </span>
+                      </div>
                     </td>
 
                     <td className="px-4 py-3 text-right font-mono font-semibold text-zinc-900 dark:text-zinc-100">
