@@ -148,6 +148,7 @@ export interface Database {
           is_public: boolean;
           is_system: boolean;
           leaderboard_unlock_votes: number;
+          topic_group: string | null;
           created_at: string;
         };
         Insert: {
@@ -159,6 +160,7 @@ export interface Database {
           is_public?: boolean;
           is_system?: boolean;
           leaderboard_unlock_votes?: number;
+          topic_group?: string | null;
           created_at?: string;
         };
         Update: {
@@ -168,6 +170,7 @@ export interface Database {
           owner_id?: string | null;
           is_public?: boolean;
           leaderboard_unlock_votes?: number;
+          topic_group?: string | null;
         };
       };
 
