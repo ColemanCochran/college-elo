@@ -7,7 +7,8 @@
     "build": "next build",
     "start": "next start",
     "test:elo": "tsx lib/elo.test.ts",
-    "seed": "tsx scripts/seed.ts"
+    "seed": "tsx scripts/seed.ts",
+    "seed:coachella": "tsx scripts/seed-coachella.ts"
   },
   "dependencies": {
     "@supabase/ssr": "^0.10.0",

@@ -27,7 +27,7 @@ export default async function DiscoverPage({
   const [supabase, isAdmin] = await Promise.all([createClient(), getAdminSession()]);
   const { data: allTopics } = await supabase
     .from("topics")
-    .select("slug, name, description, is_system, leaderboard_unlock_votes")
+    .select("slug, name, description, is_system, leaderboard_unlock_votes, topic_group")
     .eq("is_public", true)
     .order("is_system", { ascending: false })
     .order("created_at", { ascending: true });
@@ -38,12 +38,28 @@ export default async function DiscoverPage({
     description: t.description,
     is_system: t.is_system,
     leaderboard_unlock_votes: t.leaderboard_unlock_votes,
+    topic_group: t.topic_group ?? null,
   }));
 
-  const systemTopics = topics.filter(t => t.is_system);
-  const userTopics = topics.filter(t => !t.is_system);
+  // Topics with a topic_group are "featured" (shown as grouped cards).
+  // Everything else is a standalone community forum.
+  const userTopics = topics.filter(t => !t.topic_group);
 
-  const subtopicNames = systemTopics.map(t => t.name);
+  // Group featured topics by topic_group for separate featured cards
+  const groupedTopics = new Map<string, TopicCardData[]>();
+  for (const t of topics.filter(t => t.topic_group)) {
+    const group = t.topic_group!;
+    if (!groupedTopics.has(group)) groupedTopics.set(group, []);
+    groupedTopics.get(group)!.push(t);
+  }
+
+  // Display config for each group: card title, link slug, description.
+  // Order array controls display order on the homepage (first = top).
+  const FEATURED_ORDER = ["coachella-2026", "college-rankings"];
+  const GROUP_META: Record<string, { title: string; slug: string; description: string | null }> = {
+    "coachella-2026": { title: "2026 Coachella Lineup", slug: "coachella-2026", description: "Rank every artist on the Coachella 2026 lineup." },
+    "college-rankings": { title: "College Rankings", slug: "overall", description: null },
+  };
 
   return (
     <div className="flex flex-col min-h-screen">
@@ -96,23 +112,37 @@ export default async function DiscoverPage({
           </div>
         ) : (
           <div className="flex flex-col gap-6">
-            {/* College Rankings — single card grouping all system topics */}
-            {systemTopics.length > 0 && (
+            {/* Featured topic groups */}
+            {groupedTopics.size > 0 && (
               <div>
                 <p className="text-xs font-semibold text-zinc-400 dark:text-zinc-600 uppercase tracking-wider mb-3">
                   Featured
                 </p>
-                <TopicCard
-                  topic={{
-                    slug: "overall",
-                    name: "College Rankings",
-                    description: null,
-                    is_system: true,
-                    leaderboard_unlock_votes: 10,
-                  }}
-                  featured
-                  subtopics={subtopicNames}
-                />
+                <div className="flex flex-col gap-3">
+                  {FEATURED_ORDER.filter(g => groupedTopics.has(g)).map(group => {
+                    const groupTopics = groupedTopics.get(group)!;
+                    const meta = GROUP_META[group] ?? {
+                      title: groupTopics[0]?.name ?? group,
+                      slug: groupTopics[0]?.slug ?? group,
+                      description: null,
+                    };
+                    return (
+                      <TopicCard
+                        key={group}
+                        topic={{
+                          slug: meta.slug,
+                          name: meta.title,
+                          description: meta.description,
+                          is_system: true,
+                          leaderboard_unlock_votes: 10,
+                          topic_group: group,
+                        }}
+                        featured
+                        subtopics={groupTopics.map(t => t.name)}
+                      />
+                    );
+                  })}
+                </div>
               </div>
             )}
 

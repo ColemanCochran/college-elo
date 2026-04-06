@@ -21,6 +21,10 @@ export function getTopicName(slug: string): string {
 }
 
 export function getTopicQuestion(slug: string, name: string): string {
+  // Coachella topics
+  if (slug === "coachella-2026") return "Which artist do you prefer?";
+  if (slug.startsWith("coachella-2026-")) return `Which ${name} artist do you prefer?`;
+  // College topics
   if (slug === "overall") return "Which college is better overall?";
   if (slug === "quality-of-life") return `Which school has better ${name}?`;
   if (slug === "post-grad-success") return `Which school has better ${name}?`;

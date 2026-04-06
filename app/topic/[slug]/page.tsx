@@ -58,7 +58,7 @@ export default async function TopicVotePage({
   // Fetch topic including creator-controlled threshold
   const { data: topic } = await supabase
     .from("topics")
-    .select("id, slug, name, description, is_public, is_system, leaderboard_unlock_votes, owner_id")
+    .select("id, slug, name, description, is_public, is_system, leaderboard_unlock_votes, owner_id, topic_group")
     .eq("slug", slug)
     .eq("is_public", true)
     .single();
@@ -77,17 +77,18 @@ export default async function TopicVotePage({
     getOrCreateSessionId(),
   ]);
 
-  // System topics share a selector showing all system sub-topics (e.g. College Rankings).
-  // User-created forums are standalone — the selector only shows themselves.
+  // Topics with a topic_group share a selector showing sibling topics.
+  // Standalone forums only show themselves.
+  const hasGroup = !!topic.topic_group;
   let topics: { slug: string; name: string }[];
-  if (topic.is_system) {
-    const { data: systemTopics } = await supabase
+  if (hasGroup) {
+    const { data: groupTopics } = await supabase
       .from("topics")
       .select("slug, name")
       .eq("is_public", true)
-      .eq("is_system", true)
+      .eq("topic_group", topic.topic_group)
       .order("created_at", { ascending: true });
-    topics = (systemTopics ?? []).map(t => ({ slug: t.slug, name: t.name }));
+    topics = (groupTopics ?? []).map(t => ({ slug: t.slug, name: t.name }));
   } else {
     topics = [{ slug: topic.slug, name: topic.name }];
   }
@@ -153,7 +154,7 @@ export default async function TopicVotePage({
               initialTopicSlug={slug}
               topics={topics}
               threshold={topic.leaderboard_unlock_votes}
-              isSystem={topic.is_system}
+              isSystem={hasGroup}
               description={topic.description}
             />
           ) : (

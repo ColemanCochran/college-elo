@@ -6,6 +6,7 @@ export interface TopicCardData {
   description: string | null;
   is_system: boolean;
   leaderboard_unlock_votes: number;
+  topic_group: string | null;
 }
 
 interface TopicCardProps {

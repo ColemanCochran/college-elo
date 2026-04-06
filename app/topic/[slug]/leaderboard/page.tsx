@@ -35,7 +35,7 @@ export default async function TopicLeaderboardPage({
 
   const { data: topic } = await supabase
     .from("topics")
-    .select("id, slug, name, is_system, is_public, leaderboard_unlock_votes")
+    .select("id, slug, name, is_system, is_public, leaderboard_unlock_votes, topic_group")
     .eq("slug", slug)
     .eq("is_public", true)
     .single();
@@ -101,16 +101,17 @@ export default async function TopicLeaderboardPage({
     .from("votes")
     .select("*", { count: "exact", head: true });
 
-  // Tab switcher: system forums show all system sub-topics; user forums show only themselves
+  // Tab switcher: grouped forums show siblings; standalone forums show only themselves
+  const hasGroup = !!topic.topic_group;
   let topics: { slug: string; name: string }[];
-  if (topic.is_system) {
-    const { data: systemTopics } = await supabase
+  if (hasGroup) {
+    const { data: groupTopics } = await supabase
       .from("topics")
       .select("slug, name")
       .eq("is_public", true)
-      .eq("is_system", true)
+      .eq("topic_group", topic.topic_group)
       .order("created_at", { ascending: true });
-    topics = (systemTopics ?? []).map(t => ({ slug: t.slug, name: t.name }));
+    topics = (groupTopics ?? []).map(t => ({ slug: t.slug, name: t.name }));
   } else {
     topics = [{ slug: topic.slug, name: topic.name }];
   }
