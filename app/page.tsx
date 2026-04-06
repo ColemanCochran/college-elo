@@ -170,15 +170,7 @@ export default async function DiscoverPage({
             <Link href="/about" className="hover:text-zinc-600 dark:hover:text-zinc-400 transition-colors">
               About
             </Link>
-            <a
-              href="https://coleman.business/"
-              target="_blank"
-              rel="noopener noreferrer"
-              className="px-2.5 py-1 rounded-md bg-zinc-100 dark:bg-zinc-800 hover:bg-zinc-200 dark:hover:bg-zinc-700 text-zinc-600 dark:text-zinc-400 transition-colors"
-            >
-              Donate
-            </a>
-            {!isAdmin && (
+{!isAdmin && (
               <Link href="/auth/sign-in" className="hover:text-zinc-600 dark:hover:text-zinc-400 transition-colors">
                 Sign in
               </Link>
