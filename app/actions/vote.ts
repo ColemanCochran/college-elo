@@ -1,7 +1,7 @@
 "use server";
 
 import { createClient, createAdminClient } from "@/lib/supabase-server";
-import { calculateNewRatings } from "@/lib/elo";
+
 import { generateMatchup } from "@/lib/matchmaking";
 import { signMatchup, verifyMatchupToken } from "@/lib/matchup-token";
 import { VoteResult, Matchup, College } from "@/types";
@@ -129,53 +129,30 @@ export async function submitVote(
     if (!topic) return { success: false, nextMatchup: null, error: "Forum not found." };
 
     if (topic.is_system) {
-      // ── System forum: update elo_ratings ────────────────────────────────────
-      const { data: ratings } = await supabase
-        .from("elo_ratings")
-        .select("*")
-        .in("college_id", [winnerId, loserId])
-        .eq("topic_id", topic.id);
-
-      if (!ratings || ratings.length !== 2) {
-        return { success: false, nextMatchup: null, error: "Ratings not found." };
+      // ── System forum: atomic ELO update + vote insert ──────────────────────
+      const { error: voteError } = await admin.rpc("submit_system_vote", {
+        p_winner_id: winnerId,
+        p_loser_id: loserId,
+        p_topic_id: topic.id,
+        p_ip_hash: ipHash,
+        p_session_id: sessionId,
+      });
+      if (voteError) {
+        return { success: false, nextMatchup: null, error: "Vote failed. Please try again." };
       }
-
-      const winnerRating = ratings.find(r => r.college_id === winnerId)!;
-      const loserRating = ratings.find(r => r.college_id === loserId)!;
-      const { winnerNew, loserNew } = calculateNewRatings(winnerRating.rating, loserRating.rating);
-
-      await admin.from("elo_ratings").update({ rating: winnerNew, wins: winnerRating.wins + 1, matches_played: winnerRating.matches_played + 1 }).eq("college_id", winnerId).eq("topic_id", topic.id);
-      await admin.from("elo_ratings").update({ rating: loserNew, losses: loserRating.losses + 1, matches_played: loserRating.matches_played + 1 }).eq("college_id", loserId).eq("topic_id", topic.id);
-      await admin.from("votes").insert({ winner_college_id: winnerId, loser_college_id: loserId, ip_hash: ipHash, session_id: sessionId, topic_id: topic.id });
-
-      const [canonA, canonB] = winnerId < loserId ? [winnerId, loserId] : [loserId, winnerId];
-      await admin.rpc("record_matchup_vote", { p_college_a_id: canonA, p_college_b_id: canonB, p_winner_id: winnerId });
 
     } else {
-      // ── User forum: update topic_items ───────────────────────────────────────
-      const { data: items } = await supabase
-        .from("topic_items")
-        .select("id, elo_rating, wins, losses, comparisons")
-        .in("id", [winnerId, loserId])
-        .eq("topic_id", topic.id);
-
-      if (!items || items.length !== 2) {
-        return { success: false, nextMatchup: null, error: "Items not found." };
-      }
-
-      const winnerItem = items.find(i => i.id === winnerId)!;
-      const loserItem = items.find(i => i.id === loserId)!;
-      const { winnerNew, loserNew } = calculateNewRatings(winnerItem.elo_rating, loserItem.elo_rating);
-
-      await admin.from("topic_items").update({ elo_rating: winnerNew, wins: winnerItem.wins + 1, comparisons: winnerItem.comparisons + 1 }).eq("id", winnerId);
-      await admin.from("topic_items").update({ elo_rating: loserNew, losses: loserItem.losses + 1, comparisons: loserItem.comparisons + 1 }).eq("id", loserId);
-      await admin.from("topic_votes").insert({ topic_id: topic.id, winner_item_id: winnerId, loser_item_id: loserId, ip_hash: ipHash, session_id: sessionId });
-      await admin.rpc("record_topic_item_vote", {
-        p_topic_id: topic.id,
-        p_item_a_id: winnerId < loserId ? winnerId : loserId,
-        p_item_b_id: winnerId < loserId ? loserId : winnerId,
+      // ── User forum: atomic ELO update + vote insert ────────────────────────
+      const { error: voteError } = await admin.rpc("submit_topic_item_vote", {
         p_winner_id: winnerId,
+        p_loser_id: loserId,
+        p_topic_id: topic.id,
+        p_ip_hash: ipHash,
+        p_session_id: sessionId,
       });
+      if (voteError) {
+        return { success: false, nextMatchup: null, error: "Vote failed. Please try again." };
+      }
     }
 
     // Increment vote cookies
