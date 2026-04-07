@@ -97,9 +97,11 @@ export default async function TopicLeaderboardPage({
       : [];
   }
 
-  const { count: globalVoteCount } = await supabase
-    .from("votes")
-    .select("*", { count: "exact", head: true });
+  const [{ count: collegeVoteCount }, { count: topicVoteCount }] = await Promise.all([
+    supabase.from("votes").select("*", { count: "exact", head: true }),
+    supabase.from("topic_votes").select("*", { count: "exact", head: true }),
+  ]);
+  const globalVoteCount = (collegeVoteCount ?? 0) + (topicVoteCount ?? 0);
 
   // Only certain topic_groups get sibling tabs (subtopics).
   // Groups like "kalshi" are just homepage categories, not subtopic families.
