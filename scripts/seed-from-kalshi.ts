@@ -128,6 +128,7 @@ async function main() {
       is_system: false,
       owner_id: null,
       leaderboard_unlock_votes: 10,
+      topic_group: "kalshi",
     })
     .select("id, slug")
     .single();

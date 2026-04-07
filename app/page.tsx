@@ -41,21 +41,21 @@ export default async function DiscoverPage({
     topic_group: t.topic_group ?? null,
   }));
 
-  // Topics with a topic_group are "featured" (shown as grouped cards).
-  // Everything else is a standalone community forum.
+  // Standalone community forums (no topic_group)
   const userTopics = topics.filter(t => !t.topic_group);
 
-  // Group featured topics by topic_group for separate featured cards
+  // Kalshi forums — shown in their own section as individual cards
+  const kalshiTopics = topics.filter(t => t.topic_group === "kalshi");
+
+  // Featured groups — topic_groups that get a single card with subtopic pills
+  const FEATURED_GROUPS = ["coachella-2026", "college-rankings"];
   const groupedTopics = new Map<string, TopicCardData[]>();
-  for (const t of topics.filter(t => t.topic_group)) {
+  for (const t of topics.filter(t => t.topic_group && t.topic_group !== "kalshi")) {
     const group = t.topic_group!;
     if (!groupedTopics.has(group)) groupedTopics.set(group, []);
     groupedTopics.get(group)!.push(t);
   }
 
-  // Display config for each group: card title, link slug, description.
-  // Order array controls display order on the homepage (first = top).
-  const FEATURED_ORDER = ["coachella-2026", "college-rankings"];
   const GROUP_META: Record<string, { title: string; slug: string; description: string | null }> = {
     "coachella-2026": { title: "2026 Coachella Lineup", slug: "coachella-2026", description: "Rank every artist on the Coachella 2026 lineup." },
     "college-rankings": { title: "College Rankings", slug: "overall", description: null },
@@ -119,7 +119,7 @@ export default async function DiscoverPage({
                   Featured
                 </p>
                 <div className="flex flex-col gap-3">
-                  {FEATURED_ORDER.filter(g => groupedTopics.has(g)).map(group => {
+                  {FEATURED_GROUPS.filter(g => groupedTopics.has(g)).map(group => {
                     const groupTopics = groupedTopics.get(group)!;
                     const meta = GROUP_META[group] ?? {
                       title: groupTopics[0]?.name ?? group,
@@ -142,6 +142,20 @@ export default async function DiscoverPage({
                       />
                     );
                   })}
+                </div>
+              </div>
+            )}
+
+            {/* Kalshi prediction markets */}
+            {kalshiTopics.length > 0 && (
+              <div>
+                <p className="text-xs font-semibold text-zinc-400 dark:text-zinc-600 uppercase tracking-wider mb-3">
+                  Kalshi
+                </p>
+                <div className="grid sm:grid-cols-2 gap-3">
+                  {kalshiTopics.map(t => (
+                    <TopicCard key={t.slug} topic={t} />
+                  ))}
                 </div>
               </div>
             )}
