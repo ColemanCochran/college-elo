@@ -8,7 +8,8 @@
     "start": "next start",
     "test:elo": "tsx lib/elo.test.ts",
     "seed": "tsx scripts/seed.ts",
-    "seed:coachella": "tsx scripts/seed-coachella.ts"
+    "seed:coachella": "tsx scripts/seed-coachella.ts",
+    "seed:forums": "tsx scripts/seed-new-forums.ts"
   },
   "dependencies": {
     "@supabase/ssr": "^0.10.0",
