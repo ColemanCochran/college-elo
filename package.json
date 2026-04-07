@@ -9,7 +9,8 @@
     "test:elo": "tsx lib/elo.test.ts",
     "seed": "tsx scripts/seed.ts",
     "seed:coachella": "tsx scripts/seed-coachella.ts",
-    "seed:forums": "tsx scripts/seed-new-forums.ts"
+    "seed:forums": "tsx scripts/seed-new-forums.ts",
+    "seed:kalshi": "tsx scripts/seed-from-kalshi.ts"
   },
   "dependencies": {
     "@supabase/ssr": "^0.10.0",
