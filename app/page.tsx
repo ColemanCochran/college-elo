@@ -1,6 +1,7 @@
 import { createClient } from "@/lib/supabase-server";
 import { getAdminSession } from "@/lib/admin-auth";
 import TopicCard, { TopicCardData } from "@/components/TopicCard";
+import CollapsibleSection from "@/components/CollapsibleSection";
 import ThemeToggle from "@/components/ThemeToggle";
 import Link from "next/link";
 import { redirect } from "next/navigation";
@@ -148,30 +149,20 @@ export default async function DiscoverPage({
 
             {/* Kalshi prediction markets */}
             {kalshiTopics.length > 0 && (
-              <div>
-                <p className="text-xs font-semibold text-zinc-400 dark:text-zinc-600 uppercase tracking-wider mb-3">
-                  Kalshi
-                </p>
-                <div className="grid sm:grid-cols-2 gap-3">
-                  {kalshiTopics.map(t => (
-                    <TopicCard key={t.slug} topic={t} />
-                  ))}
-                </div>
-              </div>
+              <CollapsibleSection title="Kalshi" count={kalshiTopics.length} initialVisible={6}>
+                {kalshiTopics.map(t => (
+                  <TopicCard key={t.slug} topic={t} />
+                ))}
+              </CollapsibleSection>
             )}
 
             {/* User-created topics */}
             {userTopics.length > 0 && (
-              <div>
-                <p className="text-xs font-semibold text-zinc-400 dark:text-zinc-600 uppercase tracking-wider mb-3">
-                  Community forums
-                </p>
-                <div className="grid sm:grid-cols-2 gap-3">
-                  {userTopics.map(t => (
-                    <TopicCard key={t.slug} topic={t} />
-                  ))}
-                </div>
-              </div>
+              <CollapsibleSection title="Community forums" count={userTopics.length} initialVisible={6}>
+                {userTopics.map(t => (
+                  <TopicCard key={t.slug} topic={t} />
+                ))}
+              </CollapsibleSection>
             )}
           </div>
         )}
