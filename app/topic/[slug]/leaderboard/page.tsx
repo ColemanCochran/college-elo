@@ -1,4 +1,4 @@
-import { createClient } from "@/lib/supabase-server";
+import { createClient, createAdminClient } from "@/lib/supabase-server";
 import LeaderboardTable, { RankedEntry } from "@/components/LeaderboardTable";
 import Link from "next/link";
 import { cookies } from "next/headers";
@@ -97,9 +97,11 @@ export default async function TopicLeaderboardPage({
       : [];
   }
 
+  // Use admin client for topic_votes count — RLS blocks anon reads on that table
+  const admin = createAdminClient();
   const [{ count: collegeVoteCount }, { count: topicVoteCount }] = await Promise.all([
     supabase.from("votes").select("*", { count: "exact", head: true }),
-    supabase.from("topic_votes").select("*", { count: "exact", head: true }),
+    admin.from("topic_votes").select("*", { count: "exact", head: true }),
   ]);
   const globalVoteCount = (collegeVoteCount ?? 0) + (topicVoteCount ?? 0);
 
