@@ -77,9 +77,10 @@ export default async function TopicVotePage({
     getOrCreateSessionId(),
   ]);
 
-  // Topics with a topic_group share a selector showing sibling topics.
-  // Standalone forums only show themselves.
-  const hasGroup = !!topic.topic_group;
+  // Only certain topic_groups get a shared selector (subtopics).
+  // Groups like "kalshi" are just homepage categories, not subtopic families.
+  const SUBTOPIC_GROUPS = ["college-rankings", "coachella-2026"];
+  const hasGroup = !!topic.topic_group && SUBTOPIC_GROUPS.includes(topic.topic_group);
   let topics: { slug: string; name: string }[];
   if (hasGroup) {
     const { data: groupTopics } = await supabase

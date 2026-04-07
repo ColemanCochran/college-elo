@@ -101,8 +101,10 @@ export default async function TopicLeaderboardPage({
     .from("votes")
     .select("*", { count: "exact", head: true });
 
-  // Tab switcher: grouped forums show siblings; standalone forums show only themselves
-  const hasGroup = !!topic.topic_group;
+  // Only certain topic_groups get sibling tabs (subtopics).
+  // Groups like "kalshi" are just homepage categories, not subtopic families.
+  const SUBTOPIC_GROUPS = ["college-rankings", "coachella-2026"];
+  const hasGroup = !!topic.topic_group && SUBTOPIC_GROUPS.includes(topic.topic_group);
   let topics: { slug: string; name: string }[];
   if (hasGroup) {
     const { data: groupTopics } = await supabase
